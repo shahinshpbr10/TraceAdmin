@@ -4,78 +4,50 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[200],
+      appBar: AppBar(
+        title: const Text("Settings"),
+        backgroundColor: Colors.deepPurple,
+        elevation: 4,
+      ),
       body: SingleChildScrollView(
-        scrollDirection: Axis.vertical,
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.white, Colors.black],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(20),
-                  bottomRight: Radius.circular(20),
-                ),
-              ),
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 32.0, horizontal: 20),
-                child: Text(
-                  "Settings",
-                 
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
             _buildSectionTitle("Account"),
-            _buildListTile(
+            _buildSettingsTile(
               context,
               icon: Icons.person,
               title: "Profile Settings",
               subtitle: "Update your personal details",
-              onTap: () {
-                // Navigate to profile settings page
-              },
+              onTap: () {},
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28.0),
-              child: const Divider(),
-            ),
+            _buildDivider(),
+
             _buildSectionTitle("Preferences"),
-            _buildListTile(
+            _buildSettingsTile(
               context,
               icon: Icons.notifications_active,
               title: "Notifications",
               subtitle: "Manage notification preferences",
-              onTap: () {
-                // Navigate to notification settings page
-              },
+              onTap: () {},
             ),
-            _buildListTile(
+            _buildSettingsTile(
               context,
               icon: Icons.payment,
               title: "Payment Settings",
               subtitle: "Manage payment methods",
-              onTap: () {
-                // Navigate to payment settings page
-              },
+              onTap: () {},
             ),
-            _buildListTile(
+            _buildSettingsTile(
               context,
               icon: Icons.lock,
               title: "Privacy & Security",
               subtitle: "Manage your security settings",
-              onTap: () {
-                // Navigate to privacy & security settings page
-              },
+              onTap: () {},
             ),
-            _buildListTile(
+            _buildSettingsTile(
               context,
               icon: Icons.palette,
               title: "App Theme",
@@ -88,41 +60,37 @@ class SettingsPage extends StatelessWidget {
               ),
               onTap: () {},
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28.0),
-              child: const Divider(),
-            ),
+            _buildDivider(),
+
             _buildSectionTitle("Support"),
-            _buildListTile(
+            _buildSettingsTile(
               context,
               icon: Icons.help,
               title: "Help & Support",
               subtitle: "Get help or report issues",
-              onTap: () {
-                // Navigate to Help & Support page
-              },
+              onTap: () {},
             ),
-            _buildListTile(
+            _buildSettingsTile(
               context,
               icon: Icons.info,
               title: "About Us",
               subtitle: "Learn more about the app",
-              onTap: () {
-                // Navigate to About Us page
-              },
+              onTap: () {},
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28.0),
-              child: const Divider(),
-            ),
+            _buildDivider(),
+
+            // Logout Button
             Center(
               child: TextButton(
                 onPressed: () {
                   // Handle logout action
                 },
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 30),
+                ),
                 child: const Text(
                   "Logout",
-                  style: TextStyle(color: Colors.red),
+                  style: TextStyle(color: Colors.red, fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -132,35 +100,58 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
+  // Reusable Section Title
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 20),
+      padding: const EdgeInsets.symmetric(vertical: 12.0),
       child: Text(
         title,
-       
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: Colors.deepPurple,
+        ),
       ),
     );
   }
 
-  Widget _buildListTile(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    String? subtitle,
-    Widget? trailing,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.teal),
-      title: Text(
-        title,
-      
+  // Reusable Divider
+  Widget _buildDivider() {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 8.0),
+      child: Divider(thickness: 1, color: Colors.grey),
+    );
+  }
+
+  // Reusable Settings Tile
+  Widget _buildSettingsTile(
+      BuildContext context, {
+        required IconData icon,
+        required String title,
+        String? subtitle,
+        Widget? trailing,
+        required VoidCallback onTap,
+      }) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 2,
+      margin: const EdgeInsets.symmetric(vertical: 5),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: Icon(icon, color: Colors.deepPurple, size: 28),
+        title: Text(
+          title,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        ),
+        subtitle: subtitle != null
+            ? Text(
+          subtitle,
+          style: const TextStyle(fontSize: 14, color: Colors.grey),
+        )
+            : null,
+        trailing: trailing ?? const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+        onTap: onTap,
       ),
-      subtitle: subtitle != null
-          ? Text(subtitle, )
-          : null,
-      trailing: trailing,
-      onTap: onTap,
     );
   }
 }

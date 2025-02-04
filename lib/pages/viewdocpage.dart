@@ -36,7 +36,6 @@ class _AddViewDocumentsPageState extends State<AddViewDocumentsPage> {
 
   // Method to open file picker and upload a document
   Future<void> _uploadDocument() async {
-    // Open the file picker to select any type of file (image, PDF, etc.)
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       allowMultiple: false,
       type: FileType.any,
@@ -48,48 +47,47 @@ class _AddViewDocumentsPageState extends State<AddViewDocumentsPage> {
       String fileType = result.files.single.extension ?? 'Unknown';
 
       if (filePath != null) {
-        // Show the modal to enter document name and description
         _showDocumentDetailsModal(filePath, fileName, fileType);
       }
     }
   }
 
-  // Method to show the modal bottom sheet for entering document details
-  void _showDocumentDetailsModal(
-      String filePath, String fileName, String fileType) {
-    TextEditingController nameController =
-        TextEditingController(text: fileName);
+  // Modal bottom sheet for entering document details
+  void _showDocumentDetailsModal(String filePath, String fileName, String fileType) {
+    TextEditingController nameController = TextEditingController(text: fileName);
     TextEditingController descriptionController = TextEditingController();
 
     showModalBottomSheet(
       context: context,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       builder: (BuildContext context) {
         return Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(20.0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              const Text(
                 'Enter Document Details',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               TextField(
                 controller: nameController,
                 decoration: InputDecoration(
                   labelText: 'Document Name',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               TextField(
                 controller: descriptionController,
                 decoration: InputDecoration(
                   labelText: 'Document Description',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () {
                   setState(() {
@@ -99,14 +97,16 @@ class _AddViewDocumentsPageState extends State<AddViewDocumentsPage> {
                       path: filePath,
                       description: descriptionController.text,
                     ));
-                    filteredDocuments = documents; // Update filtered list
+                    filteredDocuments = documents;
                   });
-                  Navigator.pop(context); // Close the modal
+                  Navigator.pop(context);
                 },
-                child: Text('Add Document'),
                 style: ElevatedButton.styleFrom(
-                  minimumSize: Size(double.infinity, 50),
+                  backgroundColor: Colors.deepPurple,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  minimumSize: const Size(double.infinity, 50),
                 ),
+                child: const Text('Add Document', style: TextStyle(color: Colors.white, fontSize: 16)),
               ),
             ],
           ),
@@ -115,7 +115,7 @@ class _AddViewDocumentsPageState extends State<AddViewDocumentsPage> {
     );
   }
 
-  // Method to filter documents based on the search query
+  // Search filtering function
   void _filterDocuments(String query) {
     setState(() {
       filteredDocuments = documents.where((doc) {
@@ -129,9 +129,11 @@ class _AddViewDocumentsPageState extends State<AddViewDocumentsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[200],
       appBar: AppBar(
-        title: Text('Add & View Documents'),
-        backgroundColor: Colors.black,
+        title: const Text('Add & View Documents'),
+        backgroundColor: Colors.deepPurple,
+        elevation: 4,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -139,51 +141,88 @@ class _AddViewDocumentsPageState extends State<AddViewDocumentsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Search Bar
-            TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                labelText: 'Search Documents',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
-              onChanged: (query) => _filterDocuments(query),
-            ),
-            SizedBox(height: 16),
-
-            // Button to upload a document
-            ElevatedButton(
-              onPressed: _uploadDocument,
-              child: Text('Add Document'),
-              style: ElevatedButton.styleFrom(
-                minimumSize: Size(double.infinity, 50),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: "Search documents...",
+                  border: InputBorder.none,
+                  prefixIcon: const Icon(Icons.search, color: Colors.deepPurple),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+                ),
+                onChanged: (query) => _filterDocuments(query),
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-            // Display the list of documents
+            // Document List
             Expanded(
-              child: ListView.builder(
+              child: filteredDocuments.isEmpty
+                  ? const Center(
+                child: Text(
+                  "No documents available",
+                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+              )
+                  : ListView.builder(
+                physics: const BouncingScrollPhysics(),
                 itemCount: filteredDocuments.length,
                 itemBuilder: (context, index) {
                   final doc = filteredDocuments[index];
-                  return Card(
-                    margin: EdgeInsets.symmetric(vertical: 8.0),
-                    child: ListTile(
-                      title: Text(doc.name),
-                      subtitle: Text(
-                          'Type: ${doc.type} | Description: ${doc.description}'),
-                      trailing: Icon(Icons.remove_red_eye),
-                      onTap: () {
-                        // Handle document tap (e.g., show the document or open it)
-                        print('Tapped on: ${doc.name}');
-                      },
-                    ),
-                  );
+                  return _buildDocumentCard(doc);
                 },
               ),
             ),
           ],
         ),
+      ),
+
+      // Floating Action Button for adding documents
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _uploadDocument,
+        backgroundColor: Colors.deepPurple,
+        icon: const Icon(Icons.upload_file, color: Colors.white),
+        label: const Text(
+          "Add Document",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+
+  // Document Card UI
+  Widget _buildDocumentCard(Document doc) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 3,
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(10),
+        leading: Icon(Icons.insert_drive_file, color: Colors.deepPurple, size: 36),
+        title: Text(
+          doc.name,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        ),
+        subtitle: Text(
+          'Type: ${doc.type} | ${doc.description}',
+          style: const TextStyle(fontSize: 14, color: Colors.grey),
+        ),
+        trailing: const Icon(Icons.remove_red_eye, color: Colors.deepPurple),
+        onTap: () {
+          // Handle document tap (e.g., open document)
+          print('Tapped on: ${doc.name}');
+        },
       ),
     );
   }
