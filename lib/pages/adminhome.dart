@@ -1,13 +1,13 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:traceadmin/pages/add_transaction_page.dart';
+import 'package:traceadmin/addbuspage.dart';
 import 'package:traceadmin/pages/add_worker_page.dart';
-import 'package:traceadmin/pages/transaction_listing_page.dart';
-import 'package:traceadmin/pages/widgets/bus_card.dart';
-import 'package:traceadmin/pages/widgets/chart.dart';
-import 'package:traceadmin/pages/widgets/worker_card.dart';
+import 'package:traceadmin/pages/buslisting_page.dart';
 import 'package:traceadmin/pages/workers_listing_Page.dart';
+import 'package:traceadmin/pages/widgets/chart.dart';
 
 class AdminHomePage extends StatefulWidget {
   const AdminHomePage({super.key});
@@ -17,6 +17,83 @@ class AdminHomePage extends StatefulWidget {
 }
 
 class _AdminHomePageState extends State<AdminHomePage> {
+  String _adminName = "Loading..."; // Dynamic Admin Username
+  List<Map<String, dynamic>> _buses = [];
+  List<Map<String, dynamic>> _workers = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAdminData();
+    _fetchBuses();
+    _fetchWorkers();
+  }
+
+  // Fetch Admin Username from Firestore
+
+  Future<void> _fetchAdminData() async {
+    try {
+      // Get the current logged-in user
+      User? currentUser = FirebaseAuth.instance.currentUser;
+
+      if (currentUser == null) {
+        print("⚠️ No user logged in.");
+        return;
+      }
+
+      String userId = currentUser.uid; // Get UID of logged-in admin
+
+      DocumentSnapshot adminSnapshot = await FirebaseFirestore.instance
+          .collection("admins")
+          .doc(userId) // Use logged-in user's UID to fetch their data
+          .get();
+
+      if (adminSnapshot.exists) {
+        Map<String, dynamic> adminData = adminSnapshot.data() as Map<String, dynamic>;
+
+        setState(() {
+          _adminName = adminData["name"] ?? "Admin";
+
+        });
+
+
+      } else {
+        print("⚠️ Admin document not found for UID: $userId");
+      }
+    } catch (e) {
+      print("🔥 Error fetching admin data: $e");
+    }
+  }
+
+
+  // Fetch Buses from Firestore
+  Future<void> _fetchBuses() async {
+    try {
+      QuerySnapshot snapshot =
+      await FirebaseFirestore.instance.collection("buses").get();
+
+      setState(() {
+        _buses = snapshot.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
+      });
+    } catch (e) {
+      print("🔥 Error fetching buses: $e");
+    }
+  }
+
+  // Fetch Workers from Firestore
+  Future<void> _fetchWorkers() async {
+    try {
+      QuerySnapshot snapshot =
+      await FirebaseFirestore.instance.collection("workers").get();
+
+      setState(() {
+        _workers = snapshot.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
+      });
+    } catch (e) {
+      print("🔥 Error fetching workers: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -46,15 +123,10 @@ class _AdminHomePageState extends State<AdminHomePage> {
                 Positioned(
                   top: 50,
                   left: 20,
-                  child: GestureDetector(
-                    onTap: () {
-                      // Open menu or settings
-                    },
-                    child: CircleAvatar(
-                      radius: 22,
-                      backgroundColor: Colors.white,
-                      child: const Icon(Icons.menu, color: Colors.black),
-                    ),
+                  child: CircleAvatar(
+                    radius: 22,
+                    backgroundColor: Colors.white,
+                    child: const Icon(Icons.menu, color: Colors.black),
                   ),
                 ),
                 Positioned(
@@ -63,16 +135,16 @@ class _AdminHomePageState extends State<AdminHomePage> {
                   child: CircleAvatar(
                     radius: 26,
                     backgroundImage: const NetworkImage(
-                      'https://via.placeholder.com/150', // Replace with actual profile image URL
+                      'https://via.placeholder.com/150', // Replace with actual admin profile image URL if available
                     ),
                   ),
                 ),
                 Positioned(
                   bottom: 25,
                   left: 20,
-                  child: const Text(
-                    'Hello,\nShahinsh Pbr',
-                    style: TextStyle(
+                  child: Text(
+                    'Hello,\n$_adminName', // Dynamic Admin Name
+                    style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -114,17 +186,16 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
             _buildCardContainer(
               children: [
-                buildBusCard("PTB", "MLTR-CAL", "Kl50 Q 5252"),
-                buildBusCard("Sana Travels", "PLKD-MLTR", "Kl25 F 2235"),
+                ..._buses.take(2).map((bus) => _buildBusCard(bus)).toList(),
                 _buildActionButtons(
                   onAdd: () {
                     Navigator.of(context).push(
-                      CupertinoPageRoute(builder: (context) => AddTransactionPageAdmin()),
+                      CupertinoPageRoute(builder: (context) => AddBusPage()),
                     );
                   },
                   onSeeAll: () {
                     Navigator.of(context).push(
-                      CupertinoPageRoute(builder: (context) => TransactionListPageAdmin()),
+                      CupertinoPageRoute(builder: (context) => BusListingPage()),
                     );
                   },
                 ),
@@ -148,8 +219,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
             _buildCardContainer(
               children: [
-                buildWorkerCard("Shamil", "Driver"),
-                buildWorkerCard("Rahul", "Conductor"),
+                ..._workers.take(2).map((worker) => _buildWorkerCard(worker)).toList(),
                 _buildActionButtons(
                   onAdd: () {
                     Navigator.of(context).push(
@@ -192,43 +262,43 @@ class _AdminHomePageState extends State<AdminHomePage> {
     );
   }
 
+  // Dynamic Bus Card
+  Widget _buildBusCard(Map<String, dynamic> bus) {
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundImage: NetworkImage(bus['imageUrl'] ?? 'https://via.placeholder.com/150'),
+      ),
+      title: Text(bus['name']),
+      subtitle: Text('Route: ${bus['route']} | Plate: ${bus['numberPlate']}'),
+    );
+  }
+
+  // Dynamic Worker Card
+  Widget _buildWorkerCard(Map<String, dynamic> worker) {
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundImage: NetworkImage(worker['profilePicUrl'] ?? 'https://via.placeholder.com/150'),
+      ),
+      title: Text(worker['name']),
+      subtitle: Text('Role: ${worker['workerType']} | Bus: ${worker['busAssigned']}'),
+    );
+  }
+
   // Action Buttons (Add & See All)
   Widget _buildActionButtons({required VoidCallback onAdd, required VoidCallback onSeeAll}) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 15.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Add Button
-          ElevatedButton.icon(
-            onPressed: onAdd,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepPurple,
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            icon: const Icon(Iconsax.add, color: Colors.white),
-            label: const Text(
-              "Add",
-              style: TextStyle(color: Colors.white, fontSize: 16),
-            ),
-          ),
-
-          // See All Button
-          TextButton(
-            onPressed: onSeeAll,
-            style: TextButton.styleFrom(
-              backgroundColor: Colors.purple.withOpacity(0.2),
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            child: const Text(
-              "See All",
-              style: TextStyle(color: Colors.deepPurple, fontSize: 16),
-            ),
-          ),
-        ],
-      ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        ElevatedButton.icon(
+          onPressed: onAdd,
+          icon: const Icon(Iconsax.add),
+          label: const Text("Add"),
+        ),
+        TextButton(
+          onPressed: onSeeAll,
+          child: const Text("See All"),
+        ),
+      ],
     );
   }
 }

@@ -5,21 +5,19 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 
-class AddWorkerPage extends StatefulWidget {
-  const AddWorkerPage({super.key});
+class AddBusPage extends StatefulWidget {
+  const AddBusPage({super.key});
 
   @override
-  State<AddWorkerPage> createState() => _AddWorkerPageState();
+  State<AddBusPage> createState() => _AddBusPageState();
 }
 
-class _AddWorkerPageState extends State<AddWorkerPage> {
+class _AddBusPageState extends State<AddBusPage> {
   final _formKey = GlobalKey<FormState>();
-  File? _profilePic;
-  final _emailController = TextEditingController();
-  final _licenseController = TextEditingController();
+  File? _busImage;
   final _nameController = TextEditingController();
-  final _busAssignedController = TextEditingController();
-  String _workerType = 'Driver'; // Default worker type
+  final _routeController = TextEditingController();
+  final _numberPlateController = TextEditingController();
   bool _isLoading = false;
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -32,18 +30,18 @@ class _AddWorkerPageState extends State<AddWorkerPage> {
 
     if (pickedFile != null) {
       setState(() {
-        _profilePic = File(pickedFile.path);
+        _busImage = File(pickedFile.path);
       });
     }
   }
 
   // Upload Image to Firebase Storage
-  Future<String?> _uploadProfilePic() async {
-    if (_profilePic == null) return null;
+  Future<String?> _uploadBusImage() async {
+    if (_busImage == null) return null;
     try {
       String fileName = const Uuid().v4();
-      Reference ref = _storage.ref().child('workers/$fileName.jpg');
-      UploadTask uploadTask = ref.putFile(_profilePic!);
+      Reference ref = _storage.ref().child('buses/$fileName.jpg');
+      UploadTask uploadTask = ref.putFile(_busImage!);
       TaskSnapshot snapshot = await uploadTask;
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
@@ -52,35 +50,29 @@ class _AddWorkerPageState extends State<AddWorkerPage> {
     }
   }
 
-  // Submit Form & Save Worker to Firestore
+  // Submit Form & Save Bus to Firestore
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
-    String? profilePicUrl = await _uploadProfilePic();
+    String? busImageUrl = await _uploadBusImage();
 
-    // Create worker data
-    Map<String, dynamic> workerData = {
+    Map<String, dynamic> busData = {
       "name": _nameController.text.trim(),
-      "email": _emailController.text.trim(),
-      "workerType": _workerType,
-      "busAssigned": _busAssignedController.text.trim(),
-      "profilePicUrl": profilePicUrl ?? "",
+      "route": _routeController.text.trim(),
+      "numberPlate": _numberPlateController.text.trim(),
+      "imageUrl": busImageUrl ?? "",
       "createdAt": FieldValue.serverTimestamp(), // Timestamp for sorting
     };
 
-    if (_workerType == "Driver") {
-      workerData["licenseNumber"] = _licenseController.text.trim();
-    }
-
     try {
-      DocumentReference docRef = await _firestore.collection("workers").add(workerData);
-      print("✅ Worker added with ID: ${docRef.id}");
-
+      await _firestore.collection("buses").add(busData);
       setState(() => _isLoading = false);
+
+      print("✅ Bus added successfully!");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Worker added successfully!"), backgroundColor: Colors.green),
+        SnackBar(content: Text("Bus added successfully!"), backgroundColor: Colors.green),
       );
 
       Navigator.of(context).pop();
@@ -89,17 +81,16 @@ class _AddWorkerPageState extends State<AddWorkerPage> {
       print("❌ Firestore error: $e");
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error adding worker: $e"), backgroundColor: Colors.red),
+        SnackBar(content: Text("Error adding bus: $e"), backgroundColor: Colors.red),
       );
     }
-
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Add Worker"),
+        title: const Text("Add Bus"),
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -116,7 +107,7 @@ class _AddWorkerPageState extends State<AddWorkerPage> {
           key: _formKey,
           child: Column(
             children: [
-              // Profile Picture Section
+              // Bus Image Section
               GestureDetector(
                 onTap: _pickImage,
                 child: Stack(
@@ -125,12 +116,12 @@ class _AddWorkerPageState extends State<AddWorkerPage> {
                     CircleAvatar(
                       radius: 60,
                       backgroundColor: Colors.grey[300],
-                      backgroundImage: _profilePic != null ? FileImage(_profilePic!) : null,
-                      child: _profilePic == null
+                      backgroundImage: _busImage != null ? FileImage(_busImage!) : null,
+                      child: _busImage == null
                           ? const Icon(Icons.camera_alt, size: 35, color: Colors.grey)
                           : null,
                     ),
-                    if (_profilePic != null)
+                    if (_busImage != null)
                       Positioned(
                         bottom: 0,
                         right: 0,
@@ -148,29 +139,13 @@ class _AddWorkerPageState extends State<AddWorkerPage> {
               ),
               const SizedBox(height: 20),
 
-              _buildTextField(_nameController, "Name", Icons.person),
+              _buildTextField(_nameController, "Bus Name", Icons.directions_bus),
               const SizedBox(height: 15),
 
-              _buildTextField(_emailController, "Email", Icons.email, TextInputType.emailAddress),
+              _buildTextField(_routeController, "Route Number", Icons.route),
               const SizedBox(height: 15),
 
-              // Worker Type Dropdown
-              _buildDropdownField(
-                label: "Worker Type",
-                icon: Icons.work,
-                value: _workerType,
-                items: ['Driver', 'Conductor', 'Helper'],
-                onChanged: (String? newValue) {
-                  setState(() => _workerType = newValue!);
-                },
-              ),
-              const SizedBox(height: 15),
-
-              _buildTextField(_busAssignedController, "Bus Assigned", Icons.directions_bus),
-              const SizedBox(height: 15),
-
-              if (_workerType == 'Driver')
-                _buildTextField(_licenseController, "License Number", Icons.card_travel),
+              _buildTextField(_numberPlateController, "Number Plate", Icons.confirmation_number),
               const SizedBox(height: 20),
 
               // Submit Button
@@ -214,27 +189,6 @@ class _AddWorkerPageState extends State<AddWorkerPage> {
         contentPadding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
       ),
       validator: (value) => (value == null || value.isEmpty) ? "Please enter $label" : null,
-    );
-  }
-
-  Widget _buildDropdownField({
-    required String label,
-    required IconData icon,
-    required String value,
-    required List<String> items,
-    required Function(String?) onChanged,
-  }) {
-    return DropdownButtonFormField<String>(
-      value: value,
-      onChanged: onChanged,
-      items: items.map((String item) => DropdownMenuItem(value: item, child: Text(item))).toList(),
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, color: Colors.deepPurple),
-        filled: true,
-        fillColor: Colors.grey[200],
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-      ),
     );
   }
 }

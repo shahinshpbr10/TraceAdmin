@@ -1,141 +1,141 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 
-class Worker {
+class Bus {
   final String id;
   String name;
-  String email;
-  String workerType;
-  String busAssigned;
-  String profilePic;
+  String route;
+  String numberPlate;
+  String imageUrl;
 
-  Worker({
+  Bus({
     required this.id,
     required this.name,
-    required this.email,
-    required this.workerType,
-    required this.busAssigned,
-    required this.profilePic,
+    required this.route,
+    required this.numberPlate,
+    required this.imageUrl,
   });
 
-  // Factory method to create Worker from Firestore document
-  factory Worker.fromFirestore(DocumentSnapshot doc) {
+  // Factory method to create Bus from Firestore document
+  factory Bus.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-    return Worker(
+    return Bus(
       id: doc.id,
       name: data['name'] ?? '',
-      email: data['email'] ?? '',
-      workerType: data['workerType'] ?? '',
-      busAssigned: data['busAssigned'] ?? '',
-      profilePic: data['profilePicUrl'] ?? 'https://via.placeholder.com/150',
+      route: data['route'] ?? '',
+      numberPlate: data['numberPlate'] ?? '',
+      imageUrl: data['imageUrl'] ?? 'https://via.placeholder.com/150',
     );
   }
 }
 
-class WorkerListingPage extends StatefulWidget {
-  const WorkerListingPage({super.key});
+class BusListingPage extends StatefulWidget {
+  const BusListingPage({super.key});
 
   @override
-  State<WorkerListingPage> createState() => _WorkerListingPageState();
+  State<BusListingPage> createState() => _BusListingPageState();
 }
 
-class _WorkerListingPageState extends State<WorkerListingPage> {
-  List<Worker> workers = [];
-  List<Worker> filteredWorkers = [];
+class _BusListingPageState extends State<BusListingPage> {
+  List<Bus> buses = [];
+  List<Bus> filteredBuses = [];
   final TextEditingController _searchController = TextEditingController();
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchWorkers();
+    _fetchBuses();
   }
 
-  // Fetch Workers from Firestore
-  Future<void> _fetchWorkers() async {
+  // Fetch Buses from Firestore
+  Future<void> _fetchBuses() async {
     try {
       QuerySnapshot querySnapshot =
-      await FirebaseFirestore.instance.collection("workers").get();
+      await FirebaseFirestore.instance.collection("buses").get();
 
-      List<Worker> workerList =
-      querySnapshot.docs.map((doc) => Worker.fromFirestore(doc)).toList();
+      List<Bus> busList =
+      querySnapshot.docs.map((doc) => Bus.fromFirestore(doc)).toList();
 
       setState(() {
-        workers = workerList;
-        filteredWorkers = workerList;
+        buses = busList;
+        filteredBuses = busList;
         _isLoading = false;
       });
     } catch (e) {
-      print("🔥 Error fetching workers: $e");
+      print("🔥 Error fetching buses: $e");
       setState(() => _isLoading = false);
     }
   }
 
   // Search Filter Method
-  void _filterWorkers(String query) {
+  void _filterBuses(String query) {
     setState(() {
-      filteredWorkers = workers.where((worker) {
-        return worker.name.toLowerCase().contains(query.toLowerCase()) ||
-            worker.workerType.toLowerCase().contains(query.toLowerCase()) ||
-            worker.busAssigned.toLowerCase().contains(query.toLowerCase());
+      filteredBuses = buses.where((bus) {
+        return bus.name.toLowerCase().contains(query.toLowerCase()) ||
+            bus.route.toLowerCase().contains(query.toLowerCase()) ||
+            bus.numberPlate.toLowerCase().contains(query.toLowerCase());
       }).toList();
     });
   }
 
-  // Update Worker Details in Firestore
-  Future<void> _updateWorker(Worker worker, String newName, String newBusAssigned, File? newImage) async {
+  // Update Bus Details in Firestore
+  Future<void> _updateBus(Bus bus, String newName, String newRoute, String newNumberPlate, File? newImage) async {
     try {
-      String imageUrl = worker.profilePic;
+      String imageUrl = bus.imageUrl;
 
       // If new image is picked, upload it to Firebase Storage
       if (newImage != null) {
-        String fileName = '${worker.id}.jpg';
-        Reference ref = FirebaseStorage.instance.ref().child('workers/$fileName');
+        String fileName = '${bus.id}.jpg';
+        Reference ref = FirebaseStorage.instance.ref().child('buses/$fileName');
         UploadTask uploadTask = ref.putFile(newImage);
         TaskSnapshot snapshot = await uploadTask;
         imageUrl = await snapshot.ref.getDownloadURL();
       }
 
       // Update Firestore record
-      await FirebaseFirestore.instance.collection("workers").doc(worker.id).update({
+      await FirebaseFirestore.instance.collection("buses").doc(bus.id).update({
         "name": newName,
-        "busAssigned": newBusAssigned,
-        "profilePicUrl": imageUrl,
+        "route": newRoute,
+        "numberPlate": newNumberPlate,
+        "imageUrl": imageUrl,
       });
 
       // Update UI
       setState(() {
-        worker.name = newName;
-        worker.busAssigned = newBusAssigned;
-        worker.profilePic = imageUrl;
+        bus.name = newName;
+        bus.route = newRoute;
+        bus.numberPlate = newNumberPlate;
+        bus.imageUrl = imageUrl;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Worker updated successfully!"), backgroundColor: Colors.green),
+        SnackBar(content: Text("Bus updated successfully!"), backgroundColor: Colors.green),
       );
     } catch (e) {
-      print("❌ Error updating worker: $e");
+      print("❌ Error updating bus: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to update worker!"), backgroundColor: Colors.red),
+        SnackBar(content: Text("Failed to update bus!"), backgroundColor: Colors.red),
       );
     }
   }
 
-  // Show Alert Dialog for Editing Worker Details
-  void _showEditDialog(Worker worker) {
-    TextEditingController nameController = TextEditingController(text: worker.name);
-    TextEditingController busAssignedController = TextEditingController(text: worker.busAssigned);
-    File? newProfileImage;
+  // Show Alert Dialog for Editing Bus Details
+  void _showEditDialog(Bus bus) {
+    TextEditingController nameController = TextEditingController(text: bus.name);
+    TextEditingController routeController = TextEditingController(text: bus.route);
+    TextEditingController numberPlateController = TextEditingController(text: bus.numberPlate);
+    File? newBusImage;
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Edit Worker Details'),
+          title: const Text('Edit Bus Details'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -144,16 +144,16 @@ class _WorkerListingPageState extends State<WorkerListingPage> {
                   final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
                     setState(() {
-                      newProfileImage = File(pickedFile.path);
+                      newBusImage = File(pickedFile.path);
                     });
                   }
                 },
                 child: CircleAvatar(
                   radius: 40,
-                  backgroundImage: newProfileImage != null
-                      ? FileImage(newProfileImage!)
-                      : NetworkImage(worker.profilePic) as ImageProvider,
-                  child: newProfileImage == null
+                  backgroundImage: newBusImage != null
+                      ? FileImage(newBusImage!)
+                      : NetworkImage(bus.imageUrl) as ImageProvider,
+                  child: newBusImage == null
                       ? const Icon(Icons.camera_alt, size: 30, color: Colors.white)
                       : null,
                 ),
@@ -161,11 +161,15 @@ class _WorkerListingPageState extends State<WorkerListingPage> {
               const SizedBox(height: 15),
               TextField(
                 controller: nameController,
-                decoration: const InputDecoration(labelText: "Name"),
+                decoration: const InputDecoration(labelText: "Bus Name"),
               ),
               TextField(
-                controller: busAssignedController,
-                decoration: const InputDecoration(labelText: "Bus Assigned"),
+                controller: routeController,
+                decoration: const InputDecoration(labelText: "Route Number"),
+              ),
+              TextField(
+                controller: numberPlateController,
+                decoration: const InputDecoration(labelText: "Number Plate"),
               ),
             ],
           ),
@@ -176,7 +180,7 @@ class _WorkerListingPageState extends State<WorkerListingPage> {
             ),
             ElevatedButton(
               onPressed: () {
-                _updateWorker(worker, nameController.text, busAssignedController.text, newProfileImage);
+                _updateBus(bus, nameController.text, routeController.text, numberPlateController.text, newBusImage);
                 Navigator.of(context).pop();
               },
               child: const Text("Save"),
@@ -192,7 +196,7 @@ class _WorkerListingPageState extends State<WorkerListingPage> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('All Workers'),
+        title: const Text('All Buses'),
         backgroundColor: Colors.deepPurple,
         elevation: 4,
       ),
@@ -218,34 +222,34 @@ class _WorkerListingPageState extends State<WorkerListingPage> {
               child: TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
-                  hintText: "Search workers...",
+                  hintText: "Search buses...",
                   border: InputBorder.none,
                   prefixIcon:
                   const Icon(Icons.search, color: Colors.deepPurple),
                   contentPadding: const EdgeInsets.symmetric(
                       vertical: 14, horizontal: 20),
                 ),
-                onChanged: (query) => _filterWorkers(query),
+                onChanged: (query) => _filterBuses(query),
               ),
             ),
             const SizedBox(height: 16),
 
-            // Worker List
+            // Bus List
             Expanded(
-              child: filteredWorkers.isEmpty
+              child: filteredBuses.isEmpty
                   ? const Center(
                 child: Text(
-                  "No workers found",
+                  "No buses found",
                   style:
                   TextStyle(fontSize: 16, color: Colors.grey),
                 ),
               )
                   : ListView.builder(
                 physics: const BouncingScrollPhysics(),
-                itemCount: filteredWorkers.length,
+                itemCount: filteredBuses.length,
                 itemBuilder: (context, index) {
-                  final worker = filteredWorkers[index];
-                  return _buildWorkerCard(worker);
+                  final bus = filteredBuses[index];
+                  return _buildBusCard(bus);
                 },
               ),
             ),
@@ -255,25 +259,21 @@ class _WorkerListingPageState extends State<WorkerListingPage> {
     );
   }
 
-  // Worker Card UI
-  Widget _buildWorkerCard(Worker worker) {
+  // Bus Card UI
+  Widget _buildBusCard(Bus bus) {
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       elevation: 3,
       margin: const EdgeInsets.symmetric(vertical: 6),
       child: ListTile(
-        contentPadding: const EdgeInsets.all(10),
         leading: CircleAvatar(
-          backgroundImage: NetworkImage(worker.profilePic),
+          backgroundImage: NetworkImage(bus.imageUrl),
           radius: 30,
         ),
-        title: Text(worker.name),
-        subtitle: Text('Bus Assigned: ${worker.busAssigned}'),
-        trailing: Chip(
-          label: Text(worker.workerType),
-          backgroundColor: Colors.deepPurple.withOpacity(0.1),
-        ),
-        onTap: () => _showEditDialog(worker),
+        title: Text(bus.name),
+        subtitle: Text('Route: ${bus.route} | Plate: ${bus.numberPlate}'),
+        trailing: const Icon(Icons.edit, color: Colors.deepPurple),
+        onTap: () => _showEditDialog(bus),
       ),
     );
   }
