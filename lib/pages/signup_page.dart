@@ -11,30 +11,32 @@ class SignUpScreen extends StatefulWidget {
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
+  final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final _formKey = GlobalKey<FormState>();
 
+  // Sign-Up Function
   void _signUp() async {
     if (_formKey.currentState!.validate()) {
       try {
-        UserCredential userCredential =
-        await _auth.createUserWithEmailAndPassword(
+        // Create User with Email & Password
+        UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
 
-        await FirebaseFirestore.instance
-            .collection('admins')
-            .doc(userCredential.user!.uid)
-            .set({
+        // Store User Data in Firestore
+        await FirebaseFirestore.instance.collection('admins').doc(userCredential.user!.uid).set({
+          'name': _nameController.text.trim(),
           'email': _emailController.text.trim(),
           'phone': _phoneController.text.trim(),
           'account_status': 'pending',
         });
 
+        // Navigate to Login Screen
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => LoginScreen()),
@@ -72,10 +74,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
               const SizedBox(height: 25),
 
-              // Sign Up Form
+              // Sign-Up Form
               Card(
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 elevation: 8,
                 shadowColor: Colors.black45,
                 color: Colors.blueGrey[800],
@@ -86,6 +87,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        _buildTextField(
+                          controller: _nameController,
+                          label: "Full Name",
+                          icon: Icons.person,
+                        ),
+                        const SizedBox(height: 15),
                         _buildTextField(
                           controller: _emailController,
                           label: "Email",
@@ -108,21 +115,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         ),
                         const SizedBox(height: 25),
 
-                        // Sign Up Button
+                        // Sign-Up Button
                         ElevatedButton(
                           onPressed: _signUp,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.deepPurple,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 50, vertical: 15),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             elevation: 6,
                           ),
                           child: const Text(
                             'Sign Up',
-                            style: TextStyle(
-                                fontSize: 18, color: Colors.white),
+                            style: TextStyle(fontSize: 18, color: Colors.white),
                           ),
                         ),
 
@@ -132,8 +136,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         TextButton(
                           onPressed: () => Navigator.push(
                             context,
-                            MaterialPageRoute(
-                                builder: (context) => LoginScreen()),
+                            MaterialPageRoute(builder: (context) => LoginScreen()),
                           ),
                           child: const Text(
                             "Already have an account? Login",

@@ -45,6 +45,7 @@ dependencies:
   cached_network_image: ^3.4.1
   intl: ^0.20.2
   firebase_storage: ^12.4.1
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:

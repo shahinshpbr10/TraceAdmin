@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -15,10 +16,9 @@ class AddWorkerPage extends StatefulWidget {
 class _AddWorkerPageState extends State<AddWorkerPage> {
   final _formKey = GlobalKey<FormState>();
   File? _profilePic;
-  final _emailController = TextEditingController();
-  final _licenseController = TextEditingController();
   final _nameController = TextEditingController();
-  final _busAssignedController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   String _workerType = 'Driver'; // Default worker type
   bool _isLoading = false;
 
@@ -26,10 +26,27 @@ class _AddWorkerPageState extends State<AddWorkerPage> {
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final ImagePicker _picker = ImagePicker();
 
-  // Image Picker
+  String? _adminId; // Current logged-in admin ID
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAdminId();
+  }
+
+  // ✅ Fetch current logged-in admin ID
+  Future<void> _fetchAdminId() async {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      setState(() {
+        _adminId = currentUser.uid; // Admin ID = Current User ID
+      });
+    }
+  }
+
+  // ✅ Image Picker
   Future<void> _pickImage() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-
     if (pickedFile != null) {
       setState(() {
         _profilePic = File(pickedFile.path);
@@ -37,7 +54,7 @@ class _AddWorkerPageState extends State<AddWorkerPage> {
     }
   }
 
-  // Upload Image to Firebase Storage
+  // ✅ Upload Image to Firebase Storage
   Future<String?> _uploadProfilePic() async {
     if (_profilePic == null) return null;
     try {
@@ -52,8 +69,15 @@ class _AddWorkerPageState extends State<AddWorkerPage> {
     }
   }
 
-  // Submit Form & Save Worker to Firestore
+  // ✅ Submit Form & Save Worker inside "admins/{adminId}/workers" sub-collection
   Future<void> _submitForm() async {
+    if (_adminId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Admin ID not found!"), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
@@ -64,23 +88,25 @@ class _AddWorkerPageState extends State<AddWorkerPage> {
     Map<String, dynamic> workerData = {
       "name": _nameController.text.trim(),
       "email": _emailController.text.trim(),
+      "phone": _phoneController.text.trim(),
       "workerType": _workerType,
-      "busAssigned": _busAssignedController.text.trim(),
       "profilePicUrl": profilePicUrl ?? "",
       "createdAt": FieldValue.serverTimestamp(), // Timestamp for sorting
     };
 
-    if (_workerType == "Driver") {
-      workerData["licenseNumber"] = _licenseController.text.trim();
-    }
-
     try {
-      DocumentReference docRef = await _firestore.collection("workers").add(workerData);
+      // ✅ Store worker inside "admins/{adminId}/workers" sub-collection
+      DocumentReference docRef = await _firestore
+          .collection("admins")
+          .doc(_adminId) // 🔥 Stores under current admin
+          .collection("workers")
+          .add(workerData);
+
       print("✅ Worker added with ID: ${docRef.id}");
 
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Worker added successfully!"), backgroundColor: Colors.green),
+        const SnackBar(content: Text("Worker added successfully!"), backgroundColor: Colors.green),
       );
 
       Navigator.of(context).pop();
@@ -92,31 +118,19 @@ class _AddWorkerPageState extends State<AddWorkerPage> {
         SnackBar(content: Text("Error adding worker: $e"), backgroundColor: Colors.red),
       );
     }
-
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Add Worker"),
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.deepPurple, Colors.purpleAccent],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-      ),
+      appBar: AppBar(title: const Text("Add Worker")),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Form(
           key: _formKey,
           child: Column(
             children: [
-              // Profile Picture Section
+              // ✅ Profile Picture Section
               GestureDetector(
                 onTap: _pickImage,
                 child: Stack(
@@ -130,19 +144,6 @@ class _AddWorkerPageState extends State<AddWorkerPage> {
                           ? const Icon(Icons.camera_alt, size: 35, color: Colors.grey)
                           : null,
                     ),
-                    if (_profilePic != null)
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(
-                            color: Colors.deepPurple,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.edit, size: 20, color: Colors.white),
-                        ),
-                      ),
                   ],
                 ),
               ),
@@ -154,7 +155,10 @@ class _AddWorkerPageState extends State<AddWorkerPage> {
               _buildTextField(_emailController, "Email", Icons.email, TextInputType.emailAddress),
               const SizedBox(height: 15),
 
-              // Worker Type Dropdown
+              _buildTextField(_phoneController, "Phone Number", Icons.phone, TextInputType.phone),
+              const SizedBox(height: 15),
+
+              // ✅ Worker Type Dropdown
               _buildDropdownField(
                 label: "Worker Type",
                 icon: Icons.work,
@@ -164,16 +168,9 @@ class _AddWorkerPageState extends State<AddWorkerPage> {
                   setState(() => _workerType = newValue!);
                 },
               ),
-              const SizedBox(height: 15),
-
-              _buildTextField(_busAssignedController, "Bus Assigned", Icons.directions_bus),
-              const SizedBox(height: 15),
-
-              if (_workerType == 'Driver')
-                _buildTextField(_licenseController, "License Number", Icons.card_travel),
               const SizedBox(height: 20),
 
-              // Submit Button
+              // ✅ Submit Button
               _isLoading
                   ? const CircularProgressIndicator()
                   : ElevatedButton(
@@ -196,6 +193,7 @@ class _AddWorkerPageState extends State<AddWorkerPage> {
     );
   }
 
+  // ✅ Reusable TextField Widget
   Widget _buildTextField(
       TextEditingController controller,
       String label,
@@ -213,10 +211,22 @@ class _AddWorkerPageState extends State<AddWorkerPage> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
         contentPadding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
       ),
-      validator: (value) => (value == null || value.isEmpty) ? "Please enter $label" : null,
+      validator: (value) {
+        if (value == null || value.isEmpty) return "Please enter $label";
+        if (label == "Email" &&
+            !RegExp(r"^[a-zA-Z0-9+_.-]+@[a-zA-Z0-9.-]+$").hasMatch(value)) {
+          return "Enter a valid email";
+        }
+        if (label == "Phone Number" &&
+            !RegExp(r"^[0-9]{10,15}$").hasMatch(value)) {
+          return "Enter a valid phone number";
+        }
+        return null;
+      },
     );
   }
 
+  // ✅ Worker Type Dropdown
   Widget _buildDropdownField({
     required String label,
     required IconData icon,

@@ -38,7 +38,8 @@ class SettingsPage extends StatelessWidget {
               icon: Icons.payment,
               title: "Payment Settings",
               subtitle: "Manage payment methods",
-              onTap: () {},
+              onTap: () {
+              },
             ),
             _buildSettingsTile(
               context,
