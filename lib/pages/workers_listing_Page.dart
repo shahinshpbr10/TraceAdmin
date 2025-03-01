@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -26,10 +27,10 @@ class Worker {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     return Worker(
       id: doc.id,
-      name: data['name'] ?? '',
-      email: data['email'] ?? '',
-      workerType: data['workerType'] ?? '',
-      busAssigned: data['busAssigned'] ?? '',
+      name: data['name'] ?? 'Unknown',
+      email: data['email'] ?? 'No Email',
+      workerType: data['workerType'] ?? 'Unknown',
+      busAssigned: data['busAssigned'] ?? 'Not Assigned',
       profilePic: data['profilePicUrl'] ?? 'https://via.placeholder.com/150',
     );
   }
@@ -43,38 +44,28 @@ class WorkerListingPage extends StatefulWidget {
 }
 
 class _WorkerListingPageState extends State<WorkerListingPage> {
+  String? _adminId;
   List<Worker> workers = [];
   List<Worker> filteredWorkers = [];
   final TextEditingController _searchController = TextEditingController();
-  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchWorkers();
+    _fetchAdminId();
   }
 
-  // Fetch Workers from Firestore
-  Future<void> _fetchWorkers() async {
-    try {
-      QuerySnapshot querySnapshot =
-      await FirebaseFirestore.instance.collection("workers").get();
-
-      List<Worker> workerList =
-      querySnapshot.docs.map((doc) => Worker.fromFirestore(doc)).toList();
-
+  // ✅ Fetch logged-in Admin ID
+  Future<void> _fetchAdminId() async {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
       setState(() {
-        workers = workerList;
-        filteredWorkers = workerList;
-        _isLoading = false;
+        _adminId = currentUser.uid;
       });
-    } catch (e) {
-      print("🔥 Error fetching workers: $e");
-      setState(() => _isLoading = false);
     }
   }
 
-  // Search Filter Method
+  // ✅ Search Filter Method
   void _filterWorkers(String query) {
     setState(() {
       filteredWorkers = workers.where((worker) {
@@ -85,46 +76,106 @@ class _WorkerListingPageState extends State<WorkerListingPage> {
     });
   }
 
-  // Update Worker Details in Firestore
-  Future<void> _updateWorker(Worker worker, String newName, String newBusAssigned, File? newImage) async {
-    try {
-      String imageUrl = worker.profilePic;
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[100],
+      appBar: AppBar(
+        title: const Text('All Workers'),
+        backgroundColor: Colors.deepPurple,
+      ),
+      body: _adminId == null
+          ? const Center(child: CircularProgressIndicator())
+          : StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection("admins")
+            .doc(_adminId)
+            .collection("workers")
+            .snapshots(), // ✅ Real-time updates from sub-collection
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text("No workers available."));
+          }
 
-      // If new image is picked, upload it to Firebase Storage
-      if (newImage != null) {
-        String fileName = '${worker.id}.jpg';
-        Reference ref = FirebaseStorage.instance.ref().child('workers/$fileName');
-        UploadTask uploadTask = ref.putFile(newImage);
-        TaskSnapshot snapshot = await uploadTask;
-        imageUrl = await snapshot.ref.getDownloadURL();
-      }
+          workers = snapshot.data!.docs.map((doc) => Worker.fromFirestore(doc)).toList();
+          filteredWorkers = workers;
 
-      // Update Firestore record
-      await FirebaseFirestore.instance.collection("workers").doc(worker.id).update({
-        "name": newName,
-        "busAssigned": newBusAssigned,
-        "profilePicUrl": imageUrl,
-      });
-
-      // Update UI
-      setState(() {
-        worker.name = newName;
-        worker.busAssigned = newBusAssigned;
-        worker.profilePic = imageUrl;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Worker updated successfully!"), backgroundColor: Colors.green),
-      );
-    } catch (e) {
-      print("❌ Error updating worker: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to update worker!"), backgroundColor: Colors.red),
-      );
-    }
+          return Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                _buildSearchBar(),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: filteredWorkers.length,
+                    itemBuilder: (context, index) {
+                      return _buildWorkerCard(filteredWorkers[index]);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 
-  // Show Alert Dialog for Editing Worker Details
+  // ✅ Search Bar
+  Widget _buildSearchBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: "Search workers...",
+          border: InputBorder.none,
+          prefixIcon: const Icon(Icons.search, color: Colors.deepPurple),
+          contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+        ),
+        onChanged: (query) => _filterWorkers(query),
+      ),
+    );
+  }
+
+  // ✅ Worker Card UI
+  Widget _buildWorkerCard(Worker worker) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 3,
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(10),
+        leading: CircleAvatar(
+          backgroundImage: NetworkImage(worker.profilePic),
+          radius: 30,
+        ),
+        title: Text(worker.name),
+        subtitle: Text('Bus Assigned: ${worker.busAssigned}'),
+        trailing: Chip(
+          label: Text(worker.workerType),
+          backgroundColor: Colors.deepPurple.withOpacity(0.1),
+        ),
+        onTap: () => _showEditDialog(worker),
+      ),
+    );
+  }
+
+  // ✅ Show Edit Worker Dialog
   void _showEditDialog(Worker worker) {
     TextEditingController nameController = TextEditingController(text: worker.name);
     TextEditingController busAssignedController = TextEditingController(text: worker.busAssigned);
@@ -159,21 +210,12 @@ class _WorkerListingPageState extends State<WorkerListingPage> {
                 ),
               ),
               const SizedBox(height: 15),
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: "Name"),
-              ),
-              TextField(
-                controller: busAssignedController,
-                decoration: const InputDecoration(labelText: "Bus Assigned"),
-              ),
+              TextField(controller: nameController, decoration: const InputDecoration(labelText: "Name")),
+              TextField(controller: busAssignedController, decoration: const InputDecoration(labelText: "Bus Assigned")),
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text("Cancel", style: TextStyle(color: Colors.red)),
-            ),
+            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text("Cancel", style: TextStyle(color: Colors.red))),
             ElevatedButton(
               onPressed: () {
                 _updateWorker(worker, nameController.text, busAssignedController.text, newProfileImage);
@@ -187,94 +229,30 @@ class _WorkerListingPageState extends State<WorkerListingPage> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        title: const Text('All Workers'),
-        backgroundColor: Colors.deepPurple,
-        elevation: 4,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            // Search Bar
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: "Search workers...",
-                  border: InputBorder.none,
-                  prefixIcon:
-                  const Icon(Icons.search, color: Colors.deepPurple),
-                  contentPadding: const EdgeInsets.symmetric(
-                      vertical: 14, horizontal: 20),
-                ),
-                onChanged: (query) => _filterWorkers(query),
-              ),
-            ),
-            const SizedBox(height: 16),
+  // ✅ Update Worker Details in Firestore
+  Future<void> _updateWorker(Worker worker, String newName, String newBusAssigned, File? newImage) async {
+    if (_adminId == null) return;
 
-            // Worker List
-            Expanded(
-              child: filteredWorkers.isEmpty
-                  ? const Center(
-                child: Text(
-                  "No workers found",
-                  style:
-                  TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-              )
-                  : ListView.builder(
-                physics: const BouncingScrollPhysics(),
-                itemCount: filteredWorkers.length,
-                itemBuilder: (context, index) {
-                  final worker = filteredWorkers[index];
-                  return _buildWorkerCard(worker);
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+    try {
+      String imageUrl = worker.profilePic;
 
-  // Worker Card UI
-  Widget _buildWorkerCard(Worker worker) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 3,
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(10),
-        leading: CircleAvatar(
-          backgroundImage: NetworkImage(worker.profilePic),
-          radius: 30,
-        ),
-        title: Text(worker.name),
-        subtitle: Text('Bus Assigned: ${worker.busAssigned}'),
-        trailing: Chip(
-          label: Text(worker.workerType),
-          backgroundColor: Colors.deepPurple.withOpacity(0.1),
-        ),
-        onTap: () => _showEditDialog(worker),
-      ),
-    );
+      if (newImage != null) {
+        String fileName = '${worker.id}.jpg';
+        Reference ref = FirebaseStorage.instance.ref().child('workers/$fileName');
+        UploadTask uploadTask = ref.putFile(newImage);
+        TaskSnapshot snapshot = await uploadTask;
+        imageUrl = await snapshot.ref.getDownloadURL();
+      }
+
+      await FirebaseFirestore.instance.collection("admins").doc(_adminId).collection("workers").doc(worker.id).update({
+        "name": newName,
+        "busAssigned": newBusAssigned,
+        "profilePicUrl": imageUrl,
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Worker updated successfully!"), backgroundColor: Colors.green));
+    } catch (e) {
+      print("❌ Error updating worker: $e");
+    }
   }
 }

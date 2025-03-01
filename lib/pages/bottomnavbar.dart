@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:traceadmin/pages/adminhome.dart';
+import 'package:traceadmin/pages/bus_listing_page.dart';
 import 'package:traceadmin/pages/passenger_tracking.dart';
 import 'package:traceadmin/pages/settings_page.dart';
 import 'package:traceadmin/pages/viewdocpage.dart';
@@ -19,7 +20,7 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
   final List<Widget> _children = [
     const AdminHomePage(),
     const AddViewDocumentsPage(),
-    PassengerTrackingApp(),
+    BusListingPage(),
      SettingsPage()
   ];
 

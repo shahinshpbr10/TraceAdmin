@@ -34,13 +34,13 @@ class _BusListingPageState extends State<BusListingPage> {
     return Scaffold(
       appBar: AppBar(title: const Text("Bus Listing")),
       body: _adminId == null
-          ? const Center(child: CircularProgressIndicator()) // Wait until Admin ID is available
+          ? const Center(child: CircularProgressIndicator()) // Show loader if admin ID is not yet available
           : StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection("admins")
             .doc(_adminId)
             .collection("buses")
-            .snapshots(), // ✅ Real-time updates from buses sub-collection
+            .snapshots(), // ✅ Real-time updates
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());

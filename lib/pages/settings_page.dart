@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:traceadmin/pages/banking_page..dart';
 
 class SettingsPage extends StatelessWidget {
   @override
@@ -36,9 +37,10 @@ class SettingsPage extends StatelessWidget {
             _buildSettingsTile(
               context,
               icon: Icons.payment,
-              title: "Payment Settings",
-              subtitle: "Manage payment methods",
+              title: "Payment Details",
+              subtitle: "Manage payment Details",
               onTap: () {
+                Navigator.of(context).push(MaterialPageRoute(builder:(context) => AdminBankingPage(), ));
               },
             ),
             _buildSettingsTile(
