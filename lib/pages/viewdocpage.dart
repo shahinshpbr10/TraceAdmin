@@ -1,40 +1,87 @@
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
-class Document {
-  final String name;
-  final String type;
-  final String path;
-  final String description;
-
-  Document({
-    required this.name,
-    required this.type,
-    required this.path,
-    required this.description,
-  });
-}
-
-class AddViewDocumentsPage extends StatefulWidget {
-  const AddViewDocumentsPage({super.key});
+class BusDocumentsPage extends StatefulWidget {
+  const BusDocumentsPage({super.key});
 
   @override
-  State<AddViewDocumentsPage> createState() => _AddViewDocumentsPageState();
+  State<BusDocumentsPage> createState() => _BusDocumentsPageState();
 }
 
-class _AddViewDocumentsPageState extends State<AddViewDocumentsPage> {
-  List<Document> documents = [];
-  List<Document> filteredDocuments = [];
-  final TextEditingController _searchController = TextEditingController();
+class _BusDocumentsPageState extends State<BusDocumentsPage> {
+  String? _adminId;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  List<Map<String, dynamic>> _documents = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    filteredDocuments = documents;
+    _fetchAdminId();
   }
 
-  // Method to open file picker and upload a document
+  // ✅ Fetch the logged-in Admin ID
+  Future<void> _fetchAdminId() async {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      setState(() {
+        _adminId = currentUser.uid;
+      });
+      _fetchDocuments();
+    }
+  }
+
+  // ✅ Fetch Bus Documents from Firestore
+  Future<void> _fetchDocuments() async {
+    if (_adminId == null) return;
+    try {
+      QuerySnapshot snapshot = await _firestore
+          .collection("admins")
+          .doc(_adminId)
+          .collection("busDocuments")
+          .orderBy("expiryDate", descending: false)
+          .get();
+
+      setState(() {
+        _documents = snapshot.docs
+            .map((doc) => {"docId": doc.id, ...doc.data() as Map<String, dynamic>})
+            .toList();
+        _isLoading = false;
+      });
+
+      _checkForExpiringDocuments();
+    } catch (e) {
+      print("🔥 Error fetching documents: $e");
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // ✅ Check if any documents are about to expire
+  void _checkForExpiringDocuments() {
+    DateTime today = DateTime.now();
+    DateTime warningDate = today.add(const Duration(days: 7)); // 7 days before expiry
+
+    for (var doc in _documents) {
+      Timestamp expiryTimestamp = doc["expiryDate"];
+      DateTime expiryDate = expiryTimestamp.toDate();
+
+      if (expiryDate.isBefore(warningDate) && expiryDate.isAfter(today)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("⚠️ ${doc['name']} is expiring soon on ${DateFormat.yMMMd().format(expiryDate)}"),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    }
+  }
+
+  // ✅ File Picker and Upload
   Future<void> _uploadDocument() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       allowMultiple: false,
@@ -52,10 +99,11 @@ class _AddViewDocumentsPageState extends State<AddViewDocumentsPage> {
     }
   }
 
-  // Modal bottom sheet for entering document details
+  // ✅ Show Modal for Document Details Input
   void _showDocumentDetailsModal(String filePath, String fileName, String fileType) {
     TextEditingController nameController = TextEditingController(text: fileName);
     TextEditingController descriptionController = TextEditingController();
+    DateTime selectedDate = DateTime.now().add(const Duration(days: 30)); // Default: 30 days from today
 
     showModalBottomSheet(
       context: context,
@@ -65,48 +113,41 @@ class _AddViewDocumentsPageState extends State<AddViewDocumentsPage> {
           padding: const EdgeInsets.all(20.0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Enter Document Details',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
+              const Text('Enter Document Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               TextField(
                 controller: nameController,
-                decoration: InputDecoration(
-                  labelText: 'Document Name',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
+                decoration: InputDecoration(labelText: 'Document Name', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: descriptionController,
-                decoration: InputDecoration(
-                  labelText: 'Document Description',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
+                decoration: InputDecoration(labelText: 'Document Description', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                title: Text("Expiry Date: ${DateFormat.yMMMd().format(selectedDate)}"),
+                trailing: const Icon(Icons.calendar_today),
+                onTap: () async {
+                  DateTime? pickedDate = await showDatePicker(
+                    context: context,
+                    initialDate: selectedDate,
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                  );
+                  if (pickedDate != null) {
+                    setState(() {
+                      selectedDate = pickedDate;
+                    });
+                  }
+                },
               ),
               const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    documents.add(Document(
-                      name: nameController.text,
-                      type: fileType,
-                      path: filePath,
-                      description: descriptionController.text,
-                    ));
-                    filteredDocuments = documents;
-                  });
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepPurple,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  minimumSize: const Size(double.infinity, 50),
-                ),
-                child: const Text('Add Document', style: TextStyle(color: Colors.white, fontSize: 16)),
+                onPressed: () => _saveDocument(nameController.text, descriptionController.text, fileType, filePath, selectedDate),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, minimumSize: const Size(double.infinity, 50)),
+                child: const Text('Upload Document', style: TextStyle(color: Colors.white, fontSize: 16)),
               ),
             ],
           ),
@@ -115,114 +156,70 @@ class _AddViewDocumentsPageState extends State<AddViewDocumentsPage> {
     );
   }
 
-  // Search filtering function
-  void _filterDocuments(String query) {
-    setState(() {
-      filteredDocuments = documents.where((doc) {
-        return doc.name.toLowerCase().contains(query.toLowerCase()) ||
-            doc.type.toLowerCase().contains(query.toLowerCase()) ||
-            doc.description.toLowerCase().contains(query.toLowerCase());
-      }).toList();
-    });
+  // ✅ Save Document to Firestore & Upload to Firebase Storage
+  Future<void> _saveDocument(String name, String description, String type, String filePath, DateTime expiryDate) async {
+    if (_adminId == null) return;
+
+    setState(() => _isLoading = true);
+    String fileUrl = "";
+
+    try {
+      File file = File(filePath);
+      String fileName = "${DateTime.now().millisecondsSinceEpoch}-$name";
+      Reference ref = FirebaseStorage.instance.ref().child('busDocuments/$_adminId/$fileName');
+      UploadTask uploadTask = ref.putFile(file);
+      TaskSnapshot snapshot = await uploadTask;
+      fileUrl = await snapshot.ref.getDownloadURL();
+    } catch (e) {
+      print("🔥 Error uploading document: $e");
+    }
+
+    try {
+      await _firestore.collection("admins").doc(_adminId).collection("busDocuments").add({
+        "name": name,
+        "description": description,
+        "type": type,
+        "fileUrl": fileUrl,
+        "expiryDate": Timestamp.fromDate(expiryDate),
+        "createdAt": FieldValue.serverTimestamp(),
+      });
+
+      _fetchDocuments();
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Document uploaded successfully!"), backgroundColor: Colors.green),
+      );
+    } catch (e) {
+      print("🔥 Firestore error: $e");
+    }
+
+    setState(() => _isLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[200],
-      appBar: AppBar(
-        title: const Text('Add & View Documents'),
-        backgroundColor: Colors.deepPurple,
-        elevation: 4,
+      appBar: AppBar(title: const Text("Bus Documents"), backgroundColor: Colors.deepPurple),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView.builder(
+        itemCount: _documents.length,
+        itemBuilder: (context, index) {
+          var doc = _documents[index];
+          return ListTile(
+            title: Text(doc["name"]),
+            subtitle: Text("Expires on: ${DateFormat.yMMMd().format(doc["expiryDate"].toDate())}"),
+            trailing: const Icon(Icons.visibility, color: Colors.deepPurple),
+            onTap: () {
+              // Open document URL
+            },
+          );
+        },
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Search Bar
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: "Search documents...",
-                  border: InputBorder.none,
-                  prefixIcon: const Icon(Icons.search, color: Colors.deepPurple),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-                ),
-                onChanged: (query) => _filterDocuments(query),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Document List
-            Expanded(
-              child: filteredDocuments.isEmpty
-                  ? const Center(
-                child: Text(
-                  "No documents available",
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-              )
-                  : ListView.builder(
-                physics: const BouncingScrollPhysics(),
-                itemCount: filteredDocuments.length,
-                itemBuilder: (context, index) {
-                  final doc = filteredDocuments[index];
-                  return _buildDocumentCard(doc);
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-
-      // Floating Action Button for adding documents
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _uploadDocument,
-        backgroundColor: Colors.deepPurple,
-        icon: const Icon(Icons.upload_file, color: Colors.white),
-        label: const Text(
-          "Add Document",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-      ),
-    );
-  }
-
-  // Document Card UI
-  Widget _buildDocumentCard(Document doc) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 3,
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(10),
-        leading: Icon(Icons.insert_drive_file, color: Colors.deepPurple, size: 36),
-        title: Text(
-          doc.name,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-        ),
-        subtitle: Text(
-          'Type: ${doc.type} | ${doc.description}',
-          style: const TextStyle(fontSize: 14, color: Colors.grey),
-        ),
-        trailing: const Icon(Icons.remove_red_eye, color: Colors.deepPurple),
-        onTap: () {
-          // Handle document tap (e.g., open document)
-          print('Tapped on: ${doc.name}');
-        },
+        icon: const Icon(Icons.upload_file),
+        label: const Text("Add Document"),
       ),
     );
   }

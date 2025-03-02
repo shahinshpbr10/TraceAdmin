@@ -69,18 +69,35 @@ class _AdminBankingPageState extends State<AdminBankingPage> {
 
     setState(() => _isLoading = true);
 
-    String qrContent = "upi://pay?pa=${_upiIdController.text.trim()}&pn=AdminPayment&am=0&cu=INR";
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Error: User not logged in"), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    String ownerId = currentUser.uid; // ✅ Get the current logged-in user's UID
+    String qrContent =
+        "upi://pay?pa=${_upiIdController.text.trim()}&pn=AdminPayment&am=0&cu=INR";
 
     Map<String, dynamic> bankingData = {
       "accountNumber": _accountNumberController.text.trim(),
       "ifsc": _ifscController.text.trim(),
       "upiId": _upiIdController.text.trim(),
+      "ownerId": ownerId, // ✅ Set the current admin's UID
       "qrData": qrContent,
       "createdAt": FieldValue.serverTimestamp(),
     };
 
     try {
-      await _firestore.collection("admins").doc(_adminId).collection("bankingDetails").doc("paymentInfo").set(bankingData);
+      await _firestore
+          .collection("admins")
+          .doc(ownerId) // ✅ Use `ownerId` dynamically
+          .collection("bankingDetails")
+          .doc("paymentInfo")
+          .set(bankingData);
 
       setState(() {
         _qrData = qrContent;
@@ -88,7 +105,9 @@ class _AdminBankingPageState extends State<AdminBankingPage> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Banking details updated successfully!"), backgroundColor: Colors.green),
+        const SnackBar(
+            content: Text("Banking details updated successfully!"),
+            backgroundColor: Colors.green),
       );
     } catch (e) {
       setState(() => _isLoading = false);
@@ -99,6 +118,7 @@ class _AdminBankingPageState extends State<AdminBankingPage> {
       );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

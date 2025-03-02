@@ -19,7 +19,7 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
   // Pages to navigate
   final List<Widget> _children = [
     const AdminHomePage(),
-    const AddViewDocumentsPage(),
+    BusDocumentsPage(),
     BusListingPage(),
      SettingsPage()
   ];
