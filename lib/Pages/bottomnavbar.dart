@@ -1,9 +1,10 @@
-import 'package:admin/Pages/settingspage.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 
-import 'documentpage.dart';
+import 'buslivepage.dart';
 import 'homepage.dart';
+import 'documentpage.dart';
+import 'settingspage.dart';
 
 class BottomNavPage extends StatefulWidget {
   const BottomNavPage({Key? key}) : super(key: key);
@@ -17,8 +18,9 @@ class _BottomNavPageState extends State<BottomNavPage> {
 
   final List<Widget> _pages = [
     const HomePage(),
-    DocumentsPage(),
-     SettingsPage(),
+    const DocumentsPage(),
+     BusLivePage(), // <- NEW
+    const SettingsPage(),
   ];
 
   void _onItemTapped(int index) {
@@ -35,6 +37,7 @@ class _BottomNavPageState extends State<BottomNavPage> {
         children: _pages,
       ),
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,
         selectedItemColor: const Color(0xFF3D5AFE),
         unselectedItemColor: Colors.grey,
@@ -47,6 +50,10 @@ class _BottomNavPageState extends State<BottomNavPage> {
           BottomNavigationBarItem(
             icon: Icon(Iconsax.document),
             label: 'Documents',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Iconsax.location),
+            label: 'Live Bus',
           ),
           BottomNavigationBarItem(
             icon: Icon(Iconsax.setting),
