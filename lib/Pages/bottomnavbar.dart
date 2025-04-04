@@ -15,8 +15,8 @@ class _BottomNavPageState extends State<BottomNavPage> {
 
   final List<Widget> _pages = [
     const HomePage(),
-    const DocumentsPage(),
-    const SettingsPage(),
+    // const DocumentsPage(),
+    // const SettingsPage(),
   ];
 
   void _onItemTapped(int index) {
