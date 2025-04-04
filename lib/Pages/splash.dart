@@ -1,6 +1,10 @@
 import 'dart:async';
+import 'package:admin/Pages/login.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+
+import '../Common/text_styles.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({Key? key}) : super(key: key);
@@ -13,9 +17,9 @@ class _SplashPageState extends State<SplashPage> {
   @override
   void initState() {
     super.initState();
-    // Navigate after 3 seconds
-    Timer(const Duration(seconds: 3), () {
-      Navigator.pushReplacementNamed(context, '/placeholder');
+
+    Timer(const Duration(seconds: 7), () {
+      Navigator.pushAndRemoveUntil(context, CupertinoPageRoute(builder: (context) => LoginPage(),) , (route) => false,);
     });
   }
 
@@ -32,9 +36,9 @@ class _SplashPageState extends State<SplashPage> {
             // App Icon or Lottie Animation
             SizedBox(
               height: size.height * 0.3,
-              width: size.width * 0.6,
+              width: double.infinity,
               child: Lottie.asset(
-                'assets/lottie/trace_bus_animation.json',
+                'assets/lottie/splash.json',
                 fit: BoxFit.contain,
               ),
             ),
@@ -42,9 +46,9 @@ class _SplashPageState extends State<SplashPage> {
             const SizedBox(height: 30),
 
             // App Name
-            const Text(
+            Text(
               "Trace Admin",
-              style: TextStyle(
+              style: AppTextStyles.smallBodyText.copyWith(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF2E3A59),
@@ -54,9 +58,9 @@ class _SplashPageState extends State<SplashPage> {
             const SizedBox(height: 10),
 
             // Tagline
-            const Text(
+             Text(
               "Manage. Track. Travel.",
-              style: TextStyle(
+              style: AppTextStyles.smallBodyText.copyWith(
                 fontSize: 16,
                 fontWeight: FontWeight.w400,
                 color: Color(0xFF6C7A96),
