@@ -1,5 +1,7 @@
+import 'package:admin/Pages/signup.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:iconsax/iconsax.dart';
 
 import '../Common/text_styles.dart';
@@ -37,7 +39,14 @@ class LoginPage extends StatelessWidget {
                     color: Color(0xFF6C7A96),
                   ),
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 40),   SizedBox(
+                  height: size.height * 0.15,
+                  child: SvgPicture.asset(
+                    'assets/Images/login.svg',
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                const SizedBox(height: 20),
 
                 // Email TextField
                 TextFormField(
@@ -124,12 +133,12 @@ class LoginPage extends StatelessWidget {
                     GestureDetector(
                         onTap: () =>
                             Navigator.of(context).push(CupertinoPageRoute(
-                              builder: (context) => Placeholder(),
+                              builder: (context) => SignupPage(),
                             )),
                         child: Text(
                           "Create Account.",
                           style: AppTextStyles.smallBodyText
-                              .copyWith(fontWeight: FontWeight.bold),
+                              .copyWith(color: Color(0xFF3D5AFE)),
                         ))
                   ],
                 )
