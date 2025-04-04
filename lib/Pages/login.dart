@@ -1,3 +1,4 @@
+import 'package:admin/Pages/bottomnavbar.dart';
 import 'package:admin/Pages/forgotpassword.dart';
 import 'package:admin/Pages/signup.dart';
 import 'package:flutter/cupertino.dart';
@@ -105,7 +106,7 @@ class LoginPage extends StatelessWidget {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      Navigator.pushReplacementNamed(context, '/home');
+                      Navigator.pushAndRemoveUntil(context, CupertinoPageRoute(builder: (context) => BottomNavPage(),), (route) => false,);
                     },
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
