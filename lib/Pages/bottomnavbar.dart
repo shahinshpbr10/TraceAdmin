@@ -1,3 +1,4 @@
+import 'package:admin/Pages/settingspage.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 
@@ -17,7 +18,7 @@ class _BottomNavPageState extends State<BottomNavPage> {
   final List<Widget> _pages = [
     const HomePage(),
     DocumentsPage(),
-    // const SettingsPage(),
+     SettingsPage(),
   ];
 
   void _onItemTapped(int index) {
