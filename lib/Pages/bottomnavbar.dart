@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 
+import 'documentpage.dart';
 import 'homepage.dart';
 
 class BottomNavPage extends StatefulWidget {
@@ -15,7 +16,7 @@ class _BottomNavPageState extends State<BottomNavPage> {
 
   final List<Widget> _pages = [
     const HomePage(),
-    // const DocumentsPage(),
+    DocumentsPage(),
     // const SettingsPage(),
   ];
 
