@@ -1,3 +1,4 @@
+import 'package:admin/Pages/forgotpassword.dart';
 import 'package:admin/Pages/signup.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -86,7 +87,9 @@ class LoginPage extends StatelessWidget {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () {
-                      // Add forgot password functionality
+                      Navigator.of(context).push(CupertinoPageRoute(
+                        builder: (context) => ForgotPasswordPage(),
+                      ));
                     },
                     child: const Text(
                       "Forgot Password?",
