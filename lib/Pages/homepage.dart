@@ -1,6 +1,8 @@
 import 'package:admin/Common/text_styles.dart';
+import 'package:admin/Pages/addworkerts%20page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:iconsax/iconsax.dart';
@@ -392,7 +394,9 @@ Widget buildHomeUI(BuildContext context, String username, String profilePic) {
                           ),
 
                           IconButton(onPressed: () {
-
+Navigator.of(context).push(CupertinoPageRoute(builder: (context) {
+  return AddWorkerPage();
+},));
                           }, icon: Icon(Iconsax.additem))
                         ],
                       ),
