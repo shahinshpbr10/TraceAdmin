@@ -1,4 +1,5 @@
 import 'package:admin/Common/text_styles.dart';
+import 'package:admin/Pages/addbuspage.dart';
 import 'package:admin/Pages/addworkerts%20page.dart';
 import 'package:admin/Pages/viewworkers.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -322,7 +323,9 @@ Widget buildHomeUI(BuildContext context, String username, String profilePic) {
                             ],
                           ),
                           IconButton(onPressed: () {
-
+                            Navigator.of(context).push(CupertinoPageRoute(builder: (context) {
+                              return AddBusPage();
+                            },));
                           }, icon: Icon(Iconsax.additem))
                         ],
                       ),
