@@ -1,5 +1,6 @@
 import 'package:admin/Common/text_styles.dart';
 import 'package:admin/Pages/addworkerts%20page.dart';
+import 'package:admin/Pages/viewworkers.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
@@ -374,7 +375,12 @@ Widget buildHomeUI(BuildContext context, String username, String profilePic) {
                               ),
                             ],
                           ),
-                          Text("View all",style: AppTextStyles.caption.copyWith(color: Colors.white),)
+                          GestureDetector(onTap: () {
+                            Navigator.of(context).push(CupertinoPageRoute(builder: (context) {
+                              return ViewWorkersPage();
+                            },));
+                          },
+                              child: Text("View all",style: AppTextStyles.caption.copyWith(color: Colors.white),))
                         ],
                       ),
                     ),
