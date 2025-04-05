@@ -1,3 +1,4 @@
+import 'package:admin/Pages/aboutpage.dart';
 import 'package:admin/Pages/changepasswordpage.dart';
 import 'package:admin/Pages/privacypolicypage.dart';
 import 'package:admin/Pages/profile_page.dart';
@@ -84,7 +85,11 @@ class SettingsPage extends StatelessWidget {
                       return PrivacyPolicyPage();
                     },));
                   }),
-                  _buildSettingTile(Iconsax.info_circle, "About", () {}),
+                  _buildSettingTile(Iconsax.info_circle, "About", () {
+                    Navigator.of(context).push(CupertinoPageRoute(builder: (context) {
+                      return AboutPage();
+                    },));
+                  }),
 
                   const SizedBox(height: 24),
 

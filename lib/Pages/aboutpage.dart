@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../Common/text_styles.dart';
+
 class AboutPage extends StatelessWidget {
   const AboutPage({super.key});
 
@@ -47,51 +49,51 @@ class AboutPage extends StatelessWidget {
                       color: Colors.white,
                     ),
                     padding: const EdgeInsets.all(8),
-                    child: Image.asset("assets/images/logo.png", fit: BoxFit.contain), // Update your logo
+                    child: Image.asset("assets/Images/logotrace.png", fit: BoxFit.contain), // Update your logo
                   ),
                   const SizedBox(height: 16),
-                  const Text(
+                   Text(
                     "Trace Admin",
-                    style: TextStyle(
+                    style: AppTextStyles.smallBodyText.copyWith(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF3D5AFE),
                     ),
                   ),
                   const SizedBox(height: 10),
-                  const Text(
+                   Text(
                     "Version 1.0.0",
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                    style: AppTextStyles.smallBodyText.copyWith(fontSize: 14, color: Colors.grey),
                   ),
                   const SizedBox(height: 24),
 
-                  const Text(
+                   Text(
                     "Trace Admin is a powerful bus management tool built for real-time tracking, route planning, and team coordination. We aim to simplify fleet operations for schools, companies, and public transport providers through smart automation.",
                     textAlign: TextAlign.justify,
-                    style: TextStyle(fontSize: 15),
+                    style: AppTextStyles.smallBodyText.copyWith(fontSize: 15),
                   ),
                   const SizedBox(height: 24),
 
-                  const Text(
+                Text(
                     "Our Mission",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: AppTextStyles.smallBodyText.copyWith(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     "To empower bus owners and operators with intelligent tools for managing buses, drivers, schedules, and passengers efficiently.",
                     textAlign: TextAlign.justify,
-                    style: TextStyle(fontSize: 15),
+                    style: AppTextStyles.smallBodyText.copyWith(fontSize: 15),
                   ),
                   const SizedBox(height: 30),
 
-                  const Text(
+                   Text(
                     "Contact Us",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: AppTextStyles.smallBodyText.copyWith(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
-                  const Text("Email: support@traceadmin.com"),
+                  Text("Email: support@traceadmin.com",style: AppTextStyles.smallBodyText,),
                   const SizedBox(height: 4),
-                  const Text("Phone: +91 9876543210"),
+                  const Text("Phone: +91 9876543210",style: AppTextStyles.smallBodyText),
                 ],
               ),
             ),
