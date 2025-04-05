@@ -1,6 +1,7 @@
 import 'package:admin/Pages/bottomnavbar.dart';
 import 'package:admin/Pages/forgotpassword.dart';
 import 'package:admin/Pages/signup.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
@@ -9,7 +10,11 @@ import 'package:iconsax/iconsax.dart';
 import '../Common/text_styles.dart';
 
 class LoginPage extends StatelessWidget {
-  const LoginPage({Key? key}) : super(key: key);
+   LoginPage({Key? key}) : super(key: key);
+
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +56,8 @@ class LoginPage extends StatelessWidget {
                 const SizedBox(height: 20),
 
                 // Email TextField
-                TextFormField(
+                TextFormField(  controller: emailController,
+
                   decoration: InputDecoration(
                     hintText: "Email",
                     filled: true,
@@ -67,7 +73,8 @@ class LoginPage extends StatelessWidget {
                 const SizedBox(height: 20),
 
                 // Password TextField
-                TextFormField(
+                TextFormField(  controller: passwordController,
+
                   obscureText: true,
                   decoration: InputDecoration(
                     hintText: "Password",
@@ -105,9 +112,44 @@ class LoginPage extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pushAndRemoveUntil(context, CupertinoPageRoute(builder: (context) => BottomNavPage(),), (route) => false,);
+                    onPressed: () async {
+                      final email = emailController.text.trim();
+                      final password = passwordController.text.trim();
+
+                      if (email.isEmpty || password.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Please enter email and password")),
+                        );
+                        return;
+                      }
+
+                      try {
+                        await _auth.signInWithEmailAndPassword(email: email, password: password);
+
+                        // Navigate to BottomNavPage on success
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          CupertinoPageRoute(builder: (context) => BottomNavPage()),
+                              (route) => false,
+                        );
+                      } on FirebaseAuthException catch (e) {
+                        String message = "Login failed";
+                        if (e.code == 'user-not-found') {
+                          message = "No user found for that email";
+                        } else if (e.code == 'wrong-password') {
+                          message = "Wrong password";
+                        }
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(message)),
+                        );
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text("Error: $e")),
+                        );
+                      }
                     },
+
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       backgroundColor: const Color(0xFF3D5AFE),
