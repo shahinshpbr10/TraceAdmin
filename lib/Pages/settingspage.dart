@@ -1,3 +1,4 @@
+import 'package:admin/Pages/changepasswordpage.dart';
 import 'package:admin/Pages/profile_page.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -60,6 +61,9 @@ class SettingsPage extends StatelessWidget {
                   }),
                   _buildSettingTile(Iconsax.password_check, "Change Password", () {
                     // Navigate to change password screen
+                    Navigator.of(context).push(CupertinoPageRoute(builder: (context) {
+                      return ChangePasswordPage();
+                    },));
                   }),
 
                   const SizedBox(height: 24),

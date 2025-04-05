@@ -1,3 +1,4 @@
+import 'package:admin/Common/text_styles.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 
@@ -41,7 +42,8 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       backgroundColor: const Color(0xFFEEF3FF),
       appBar: AppBar(
         backgroundColor: const Color(0xFF3D5AFE),
-        title: const Text("Change Password"),
+        title: Text("Change Password",style: AppTextStyles.heading2.copyWith(color: Colors.white
+        ),),
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -76,8 +78,8 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: _handleChangePassword,
-                icon: const Icon(Iconsax.password_check),
-                label: const Text("Save Password"),
+                icon: const Icon(Iconsax.password_check,color: Colors.white,),
+                label:  Text("Save Password",style: AppTextStyles.smallBodyText.copyWith(color: Colors.white),),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF3D5AFE),
                   padding: const EdgeInsets.symmetric(vertical: 14),
@@ -99,7 +101,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     required bool visible,
     required VoidCallback toggleVisibility,
   }) {
-    return TextField(
+    return TextField(style: AppTextStyles.smallBodyText,
       controller: controller,
       obscureText: !visible,
       decoration: InputDecoration(
