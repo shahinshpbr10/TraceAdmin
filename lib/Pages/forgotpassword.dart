@@ -1,11 +1,13 @@
 import 'package:admin/Common/text_styles.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:iconsax/iconsax.dart';
 
 class ForgotPasswordPage extends StatelessWidget {
-  const ForgotPasswordPage({Key? key}) : super(key: key);
-
+   ForgotPasswordPage({Key? key}) : super(key: key);
+  final TextEditingController emailController = TextEditingController();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -51,7 +53,7 @@ class ForgotPasswordPage extends StatelessWidget {
                 const SizedBox(height: 40),
 
                 // Email field
-                TextFormField(
+                TextFormField(controller: emailController,
                   style: AppTextStyles.smallBodyText,
                   decoration: InputDecoration(
                     hintText: "Email",
@@ -71,15 +73,41 @@ class ForgotPasswordPage extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {
-                      // Implement password reset logic here
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Password reset link sent!"),
-                          backgroundColor: Color(0xFF3D5AFE),
-                        ),
-                      );
+                    onPressed: () async {
+                      final email = emailController.text.trim();
+
+                      if (email.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Please enter your email")),
+                        );
+                        return;
+                      }
+
+                      try {
+                        await _auth.sendPasswordResetEmail(email: email);
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Password reset link sent! Check your email."),
+                            backgroundColor: Color(0xFF3D5AFE),
+                          ),
+                        );
+                      } on FirebaseAuthException catch (e) {
+                        String message = "Something went wrong";
+                        if (e.code == 'user-not-found') {
+                          message = "No user found with this email";
+                        }
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(message)),
+                        );
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text("Error: $e")),
+                        );
+                      }
                     },
+
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       backgroundColor: const Color(0xFF3D5AFE),
