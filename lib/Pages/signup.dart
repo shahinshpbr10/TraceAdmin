@@ -132,6 +132,7 @@ class SignupPage extends StatelessWidget {
                           'email': email,
                           'phone': phone,
                           'uid': userCredential.user!.uid,
+                          'profilePic':"null",
                           'createdAt': FieldValue.serverTimestamp(),
                         });
 
