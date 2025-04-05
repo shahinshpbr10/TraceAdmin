@@ -1,11 +1,20 @@
 import 'package:admin/Common/text_styles.dart';
+import 'package:admin/Pages/login.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:iconsax/iconsax.dart';
 
 class SignupPage extends StatelessWidget {
-  const SignupPage({Key? key}) : super(key: key);
+  SignupPage({Key? key}) : super(key: key);
 
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -18,7 +27,6 @@ class SignupPage extends StatelessWidget {
           child: SingleChildScrollView(
             child: Column(
               children: [
-
                 // App Name
                 Text(
                   "Trace Admin",
@@ -40,13 +48,16 @@ class SignupPage extends StatelessWidget {
 
                 // Full Name
                 TextFormField(
+                  controller: nameController,
                   style: AppTextStyles.smallBodyText,
-                  decoration: _inputDecoration("Full Name", Iconsax.personalcard),
+                  decoration:
+                      _inputDecoration("Full Name", Iconsax.personalcard),
                 ),
                 const SizedBox(height: 16),
 
                 // Email
                 TextFormField(
+                  controller: emailController,
                   style: AppTextStyles.smallBodyText,
                   decoration: _inputDecoration("Email", Iconsax.direct_inbox),
                   keyboardType: TextInputType.emailAddress,
@@ -55,6 +66,7 @@ class SignupPage extends StatelessWidget {
 
                 // Phone Number
                 TextFormField(
+                  controller: phoneController,
                   style: AppTextStyles.smallBodyText,
                   decoration: _inputDecoration("Phone Number", Iconsax.call),
                   keyboardType: TextInputType.phone,
@@ -63,6 +75,7 @@ class SignupPage extends StatelessWidget {
 
                 // Password
                 TextFormField(
+                  controller: passwordController,
                   style: AppTextStyles.smallBodyText,
                   obscureText: true,
                   decoration: _inputDecoration("Password", Iconsax.lock),
@@ -73,8 +86,90 @@ class SignupPage extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pushReplacementNamed(context, '/home');
+                    onPressed: () async {
+                      try {
+                        final email = emailController.text.trim();
+                        final password = passwordController.text.trim();
+                        final name = nameController.text.trim();
+                        final phone = phoneController.text.trim();
+
+                        if (email.isEmpty ||
+                            password.isEmpty ||
+                            name.isEmpty ||
+                            phone.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text("Please fill all fields")),
+                          );
+                          return;
+                        }
+
+                        if (password.length < 6) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text(
+                                    "Password must be at least 6 characters")),
+                          );
+                          return;
+                        }
+
+                        // Create user
+                        final userCredential =
+                            await _auth.createUserWithEmailAndPassword(
+                          email: email,
+                          password: password,
+                        );
+
+                        // Optionally: update display name
+                        await _auth.currentUser?.updateDisplayName(name);
+
+                        // Save to Firestore
+                        await FirebaseFirestore.instance
+                            .collection('busOwners')
+                            .doc(userCredential.user!.uid)
+                            .set({
+                          'name': name,
+                          'email': email,
+                          'phone': phone,
+                          'uid': userCredential.user!.uid,
+                          'createdAt': FieldValue.serverTimestamp(),
+                        });
+
+                        // Navigate to home
+                        Navigator.of(context).pushAndRemoveUntil(
+                          CupertinoPageRoute(
+                            builder: (context) {
+                              return LoginPage();
+                            },
+                          ),
+                              (route) => false,
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Account Creation Success')),
+                        );
+                      } on FirebaseAuthException catch (e) {
+                        String message = "Signup failed";
+                        if (e.code == 'email-already-in-use') {
+                          message = "Email already in use";
+                        } else if (e.code == 'weak-password') {
+                          message = "Password should be at least 6 characters";
+                        }
+                        Navigator.of(context).pushAndRemoveUntil(
+                          CupertinoPageRoute(
+                            builder: (context) {
+                              return LoginPage();
+                            },
+                          ),
+                          (route) => false,
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(message)),
+                        );
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text("Error: $e")),
+                        );
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -86,7 +181,9 @@ class SignupPage extends StatelessWidget {
                     child: Text(
                       "Sign Up",
                       style: AppTextStyles.smallBodyText.copyWith(
-                          fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
                     ),
                   ),
                 ),
@@ -97,7 +194,8 @@ class SignupPage extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text("Already have an account?", style: AppTextStyles.smallBodyText),
+                    Text("Already have an account?",
+                        style: AppTextStyles.smallBodyText),
                     TextButton(
                       onPressed: () {
                         Navigator.pushReplacementNamed(context, '/login');
