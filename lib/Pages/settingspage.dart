@@ -1,3 +1,5 @@
+import 'package:admin/Pages/profile_page.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 
@@ -52,7 +54,9 @@ class SettingsPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   _buildSettingTile(Iconsax.user, "Profile", () {
-                    // Navigate to profile screen
+                   Navigator.of(context).push(CupertinoPageRoute(builder: (context) {
+                     return ProfilePage();
+                   },));
                   }),
                   _buildSettingTile(Iconsax.password_check, "Change Password", () {
                     // Navigate to change password screen
