@@ -1,4 +1,5 @@
 import 'package:admin/Pages/changepasswordpage.dart';
+import 'package:admin/Pages/privacypolicypage.dart';
 import 'package:admin/Pages/profile_page.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -78,7 +79,11 @@ class SettingsPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  _buildSettingTile(Iconsax.security_safe, "Privacy Policy", () {}),
+                  _buildSettingTile(Iconsax.security_safe, "Privacy Policy", () {
+                    Navigator.of(context).push(CupertinoPageRoute(builder: (context) {
+                      return PrivacyPolicyPage();
+                    },));
+                  }),
                   _buildSettingTile(Iconsax.info_circle, "About", () {}),
 
                   const SizedBox(height: 24),
