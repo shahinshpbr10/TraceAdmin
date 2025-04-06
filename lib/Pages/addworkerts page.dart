@@ -1,6 +1,9 @@
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 
@@ -15,9 +18,104 @@ class AddWorkerPage extends StatefulWidget {
 
 class _AddWorkerPageState extends State<AddWorkerPage> {
   final TextEditingController nameController = TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
   final TextEditingController licenseController = TextEditingController();
-  String selectedRole = "Helper";
+
+  String selectedRole = "Helper"; // 🔄 Keep it here (class level)
   File? licenseFile;
+  File? profileImageFile;
+
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
+
+  Future<void> _pickProfileImage() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+    );
+
+    if (result != null && result.files.single.path != null) {
+      setState(() {
+        profileImageFile = File(result.files.single.path!);
+      });
+    }
+  }
+  Future<void> _saveWorker() async {
+    final uid = _auth.currentUser!.uid;
+    final name = nameController.text.trim();
+    final phone = phoneController.text.trim();
+    final license = licenseController.text.trim();
+
+    // === Validate Required Fields ===
+    if (name.isEmpty || phone.isEmpty) {
+      _showError("Please enter both name and phone number");
+      return;
+    }
+
+    if (profileImageFile == null) {
+      _showError("Please upload a profile picture");
+      return;
+    }
+
+    if (selectedRole == "Driver") {
+      if (license.isEmpty) {
+        _showError("Please enter the license number");
+        return;
+      }
+
+      if (licenseFile == null) {
+        _showError("Please upload the license file (PDF or image)");
+        return;
+      }
+    }
+
+    try {
+      final workerId = _firestore.collection('workers').doc().id;
+
+      // Upload profile image
+      String? profileUrl;
+      final profileRef = _storage.ref().child('workers/$uid/$workerId/profile.jpg');
+      await profileRef.putFile(profileImageFile!);
+      profileUrl = await profileRef.getDownloadURL();
+
+      // Upload license file if driver
+      String? licenseFileUrl;
+      if (selectedRole == "Driver" && licenseFile != null) {
+        final fileExt = licenseFile!.path.split('.').last;
+        final licenseRef = _storage.ref().child('workers/$uid/$workerId/license.$fileExt');
+        await licenseRef.putFile(licenseFile!);
+        licenseFileUrl = await licenseRef.getDownloadURL();
+      }
+
+      // Save to Firestore
+      await _firestore
+          .collection('busOwners')
+          .doc(uid)
+          .collection('workers')
+          .doc(workerId)
+          .set({
+        'name': name,
+        'phone': phone,
+        'role': selectedRole,
+        'profileImage': profileUrl,
+        'licenseNumber': selectedRole == 'Driver' ? license : null,
+        'licenseFile': licenseFileUrl,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Worker added successfully")),
+      );
+
+      Navigator.pop(context);
+    } catch (e) {
+      _showError("Error: ${e.toString()}");
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
 
 
   @override
@@ -33,34 +131,39 @@ class _AddWorkerPageState extends State<AddWorkerPage> {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Column(
           children: [
-            // Profile pic upload
             Stack(
               children: [
-                const CircleAvatar(
+                CircleAvatar(
                   radius: 50,
                   backgroundColor: Colors.white,
-                  backgroundImage: AssetImage("assets/images/worker.png"), // Replace or upload
+                  backgroundImage: profileImageFile != null
+                      ? FileImage(profileImageFile!)
+                      : const AssetImage("assets/b1.png") as ImageProvider,
                 ),
                 Positioned(
                   bottom: 0,
                   right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Color(0xFF3D5AFE),
+                  child: GestureDetector(
+                    onTap: _pickProfileImage,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Color(0xFF3D5AFE),
+                      ),
+                      child: const Icon(Iconsax.camera, color: Colors.white, size: 16),
                     ),
-                    child: const Icon(Iconsax.camera, color: Colors.white, size: 16),
                   ),
                 )
               ],
             ),
+
             const SizedBox(height: 24),
 
             // Name
             _buildTextField("Full Name", Iconsax.user, nameController),
             const SizedBox(height: 24),
-            _buildTextField("Phone number", Iconsax.call, nameController),
+            _buildTextField("Phone number", Iconsax.call, phoneController),
 
             const SizedBox(height: 16),
 
@@ -131,7 +234,7 @@ class _AddWorkerPageState extends State<AddWorkerPage> {
                 icon:  Icon(Iconsax.save_2,color: Colors.white,),
                 label:  Text("Save Worker",style: AppTextStyles.smallBodyText.copyWith(color: Colors.white),),
                 onPressed: () {
-                  // Save logic here
+                  _saveWorker();
                 },
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
