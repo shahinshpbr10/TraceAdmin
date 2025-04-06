@@ -1,6 +1,7 @@
 import 'package:admin/Common/text_styles.dart';
 import 'package:admin/Pages/addbuspage.dart';
 import 'package:admin/Pages/addworkerts%20page.dart';
+import 'package:admin/Pages/moneyaddpage.dart';
 import 'package:admin/Pages/viewbuspage.dart';
 import 'package:admin/Pages/viewworkers.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -174,28 +175,42 @@ Widget buildHomeUI(BuildContext context, String username, String profilePic) {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Header with icon
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    Column(
                       children: [
 
                         Row(
-                          children: [ const Icon(Iconsax.chart5, color: Color(0xFF3D5AFE)),
-                            const SizedBox(width: 8),
-                            Text(
-                              "Revenue Summary",
-                              style: AppTextStyles.smallBodyText.copyWith(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                        
+                            Row(
+                              children: [ const Icon(Iconsax.chart5, color: Color(0xFF3D5AFE)),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "Revenue Summary",
+                                  style: AppTextStyles.smallBodyText.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
                             ),
+                            const Row(
+                              children: [
+                                Text("View All",style: AppTextStyles.caption,),
+                        
+                              ],
+                            )
                           ],
                         ),
-                        const Row(
-                          children: [
-                            Text("View All",style: AppTextStyles.caption,),
-
-                          ],
-                        )
+                      ],
+                    ),  Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        IconButton(onPressed: () {
+Navigator.of(context).push(CupertinoPageRoute(builder: (context) {
+  return MoneyTransactionPage();
+},));
+                        }, icon: Icon(Iconsax.additem)),
                       ],
                     ),
                     const SizedBox(height: 20),
