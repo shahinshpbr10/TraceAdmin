@@ -185,7 +185,7 @@ class _AddBusPageState extends State<AddBusPage> {
                   backgroundColor: Colors.white,
                   backgroundImage: busImageFile != null
                       ? FileImage(busImageFile!)
-                      : const AssetImage("assets/images/bus.png") as ImageProvider,
+                      : const AssetImage("assets/bus.png",  ) as ImageProvider,
                 ),
                 Positioned(
                   bottom: 0,

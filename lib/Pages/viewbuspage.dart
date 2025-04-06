@@ -1,5 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../Common/text_styles.dart';
 
@@ -12,51 +15,33 @@ class ViewBusesPage extends StatefulWidget {
 
 class _ViewBusesPageState extends State<ViewBusesPage> {
   final TextEditingController _searchController = TextEditingController();
-
-  // Example list of buses
-  List<Map<String, dynamic>> allBuses = [
-    {
-      "name": "City Bus",
-      "plate": "KL58 A1234",
-      "driver": "Ashik",
-      "helper": "Shamim",
-      "image": "assets/images/bus.png"
-    },
-    {
-      "name": "Metro Shuttle",
-      "plate": "KL10 B5678",
-      "driver": "Haneef",
-      "helper": "Suhail",
-      "image": "assets/images/bus.png"
-    },
-  ];
-
   String? filterDriver;
+  final uid = FirebaseAuth.instance.currentUser?.uid;
 
-  void _showFilterSheet() {
+  void _showFilterSheet(List<Map<String, dynamic>> allBuses) {
+    final uniqueDrivers = allBuses.map((e) => e['driver']).toSet();
+
     showModalBottomSheet(
       context: context,
-      shape:
-      const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (_) {
         return Padding(
           padding: const EdgeInsets.all(16.0),
           child: Wrap(
             children: [
-               Text("Filter by Driver", style: AppTextStyles.smallBodyText.copyWith(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text("Filter by Driver", style: AppTextStyles.smallBodyText.copyWith(fontSize: 18, fontWeight: FontWeight.bold)),
               const Divider(),
               ListTile(
-                title:  Text("All",style: AppTextStyles.smallBodyText,),
+                title: Text("All", style: AppTextStyles.smallBodyText),
                 onTap: () {
                   setState(() => filterDriver = null);
                   Navigator.pop(context);
                 },
               ),
-              ...allBuses
-                  .map((e) => e['driver'])
-                  .toSet()
-                  .map((driver) => ListTile(
-                title: Text(driver,style: AppTextStyles.smallBodyText,),
+              ...uniqueDrivers.map((driver) => ListTile(
+                title: Text(driver, style: AppTextStyles.smallBodyText),
                 onTap: () {
                   setState(() => filterDriver = driver);
                   Navigator.pop(context);
@@ -69,14 +54,23 @@ class _ViewBusesPageState extends State<ViewBusesPage> {
     );
   }
 
-  List<Map<String, dynamic>> get filteredBuses {
+  List<Map<String, dynamic>> _applyFilterAndSearch(List<Map<String, dynamic>> buses) {
     String query = _searchController.text.toLowerCase();
-    return allBuses.where((bus) {
+    return buses.where((bus) {
       final matchesDriver = filterDriver == null || bus['driver'] == filterDriver;
       final matchesSearch = bus['name'].toLowerCase().contains(query) ||
-          bus['plate'].toLowerCase().contains(query);
+          bus['numberPlate'].toLowerCase().contains(query);
       return matchesDriver && matchesSearch;
     }).toList();
+  }
+
+  Stream<List<Map<String, dynamic>>> _busStream() {
+    return FirebaseFirestore.instance
+        .collection('busOwners')
+        .doc(uid)
+        .collection('buses')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
   }
 
   @override
@@ -85,7 +79,7 @@ class _ViewBusesPageState extends State<ViewBusesPage> {
       backgroundColor: const Color(0xFFEEF3FF),
       appBar: AppBar(
         backgroundColor: const Color(0xFF3D5AFE),
-        title:  Text("All Buses",style: AppTextStyles.heading2.copyWith(color: Colors.white),),
+        title: Text("All Buses", style: AppTextStyles.heading2.copyWith(color: Colors.white)),
         elevation: 0,
       ),
       body: Column(
@@ -96,7 +90,8 @@ class _ViewBusesPageState extends State<ViewBusesPage> {
             child: Row(
               children: [
                 Expanded(
-                  child: TextField(style: AppTextStyles.smallBodyText,
+                  child: TextField(
+                    style: AppTextStyles.smallBodyText,
                     controller: _searchController,
                     onChanged: (_) => setState(() {}),
                     decoration: InputDecoration(
@@ -129,69 +124,99 @@ class _ViewBusesPageState extends State<ViewBusesPage> {
                   ),
                   child: IconButton(
                     icon: const Icon(Iconsax.setting_4, color: Color(0xFF3D5AFE)),
-                    onPressed: _showFilterSheet,
+                    onPressed: () {
+                      // open sheet only after stream has loaded
+                      FirebaseFirestore.instance
+                          .collection('busOwners')
+                          .doc(uid)
+                          .collection('buses')
+                          .get()
+                          .then((snapshot) {
+                        final buses = snapshot.docs.map((doc) => doc.data()).toList();
+                        _showFilterSheet(List<Map<String, dynamic>>.from(buses));
+                      });
+                    },
                   ),
                 ),
               ],
             ),
           ),
 
-          // List of buses
+          // Firebase Bus List
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: filteredBuses.length,
-              itemBuilder: (context, index) {
-                final bus = filteredBuses[index];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      // Bus Image
-                      CircleAvatar(
-                        radius: 28,
-                        backgroundColor: Colors.white,
-                        backgroundImage: AssetImage(bus['image']),
-                      ),
-                      const SizedBox(width: 16),
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _busStream(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-                      // Bus Details
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              bus['name'],
-                              style: AppTextStyles.smallBodyText.copyWith(
-                                  fontSize: 16, fontWeight: FontWeight.w600),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              bus['plate'],
-                              style: AppTextStyles.smallBodyText.copyWith(fontSize: 14, color: Colors.grey),
-                            ),
-                            Text(
-                              "Driver: ${bus['driver']} | Helper: ${bus['helper']}",
-                              style: AppTextStyles.smallBodyText.copyWith(fontSize: 13),
-                            ),
-                          ],
-                        ),
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Center(child: Text("No buses found"));
+                }
+
+                final filtered = _applyFilterAndSearch(snapshot.data!);
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) {
+                    final bus = filtered[index];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                      const Icon(Iconsax.arrow_right_34, color: Colors.grey),
-                    ],
-                  ),
+                      child: Row(
+                        children: [
+                          // Bus Image
+                          CircleAvatar(
+                            radius: 24,
+                            backgroundColor: Colors.white,
+                            backgroundImage: bus['image'] != null
+                                ? NetworkImage(bus['image'])
+                                : const AssetImage("assets/bus.png") as ImageProvider,
+                          ),
+                          const SizedBox(width: 16),
+
+                          // Bus Details
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  bus['name'] ?? '',
+                                  style: AppTextStyles.smallBodyText.copyWith(
+                                      fontSize: 16, fontWeight: FontWeight.w600),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  bus['numberPlate'] ?? '',
+                                  style: AppTextStyles.smallBodyText
+                                      .copyWith(fontSize: 14, color: Colors.grey),
+                                ),
+                                Text(
+                                  "Driver: ${bus['driver']} | Helper: ${bus['helper']}",
+                                  style:
+                                  AppTextStyles.smallBodyText.copyWith(fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Iconsax.arrow_right_34, color: Colors.grey),
+                        ],
+                      ),
+                    );
+                  },
                 );
               },
             ),
