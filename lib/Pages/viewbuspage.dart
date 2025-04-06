@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 
+import '../Common/text_styles.dart';
+
 class ViewBusesPage extends StatefulWidget {
   const ViewBusesPage({super.key});
 
@@ -41,10 +43,10 @@ class _ViewBusesPageState extends State<ViewBusesPage> {
           padding: const EdgeInsets.all(16.0),
           child: Wrap(
             children: [
-              const Text("Filter by Driver", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+               Text("Filter by Driver", style: AppTextStyles.smallBodyText.copyWith(fontSize: 18, fontWeight: FontWeight.bold)),
               const Divider(),
               ListTile(
-                title: const Text("All"),
+                title:  Text("All",style: AppTextStyles.smallBodyText,),
                 onTap: () {
                   setState(() => filterDriver = null);
                   Navigator.pop(context);
@@ -54,7 +56,7 @@ class _ViewBusesPageState extends State<ViewBusesPage> {
                   .map((e) => e['driver'])
                   .toSet()
                   .map((driver) => ListTile(
-                title: Text(driver),
+                title: Text(driver,style: AppTextStyles.smallBodyText,),
                 onTap: () {
                   setState(() => filterDriver = driver);
                   Navigator.pop(context);
@@ -83,7 +85,7 @@ class _ViewBusesPageState extends State<ViewBusesPage> {
       backgroundColor: const Color(0xFFEEF3FF),
       appBar: AppBar(
         backgroundColor: const Color(0xFF3D5AFE),
-        title: const Text("All Buses"),
+        title:  Text("All Buses",style: AppTextStyles.heading2.copyWith(color: Colors.white),),
         elevation: 0,
       ),
       body: Column(
@@ -94,7 +96,7 @@ class _ViewBusesPageState extends State<ViewBusesPage> {
             child: Row(
               children: [
                 Expanded(
-                  child: TextField(
+                  child: TextField(style: AppTextStyles.smallBodyText,
                     controller: _searchController,
                     onChanged: (_) => setState(() {}),
                     decoration: InputDecoration(
@@ -172,17 +174,17 @@ class _ViewBusesPageState extends State<ViewBusesPage> {
                           children: [
                             Text(
                               bus['name'],
-                              style: const TextStyle(
+                              style: AppTextStyles.smallBodyText.copyWith(
                                   fontSize: 16, fontWeight: FontWeight.w600),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               bus['plate'],
-                              style: const TextStyle(fontSize: 14, color: Colors.grey),
+                              style: AppTextStyles.smallBodyText.copyWith(fontSize: 14, color: Colors.grey),
                             ),
                             Text(
                               "Driver: ${bus['driver']} | Helper: ${bus['helper']}",
-                              style: const TextStyle(fontSize: 13),
+                              style: AppTextStyles.smallBodyText.copyWith(fontSize: 13),
                             ),
                           ],
                         ),
