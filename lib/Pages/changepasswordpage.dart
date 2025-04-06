@@ -1,4 +1,5 @@
 import 'package:admin/Common/text_styles.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 
@@ -18,10 +19,10 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   bool newPassVisible = false;
   bool confirmPassVisible = false;
 
-  void _handleChangePassword() {
-    final oldPass = oldPassController.text;
-    final newPass = newPassController.text;
-    final confirmPass = confirmPassController.text;
+  void _handleChangePassword() async {
+    final oldPass = oldPassController.text.trim();
+    final newPass = newPassController.text.trim();
+    final confirmPass = confirmPassController.text.trim();
 
     if (newPass != confirmPass) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -30,10 +31,48 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       return;
     }
 
-    // Proceed to change password in backend or Firebase Auth
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Password changed successfully")),
-    );
+    if (newPass.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("New password must be at least 6 characters")),
+      );
+      return;
+    }
+
+    try {
+      final user = FirebaseAuth.instance.currentUser!;
+      final cred = EmailAuthProvider.credential(
+        email: user.email!,
+        password: oldPass,
+      );
+
+      // Re-authenticate the user
+      await user.reauthenticateWithCredential(cred);
+
+      // Update the password
+      await user.updatePassword(newPass);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Password changed successfully")),
+      );
+
+      // Clear the fields
+      oldPassController.clear();
+      newPassController.clear();
+      confirmPassController.clear();
+    } on FirebaseAuthException catch (e) {
+      String error = "Something went wrong";
+      if (e.code == 'wrong-password') {
+        error = "Old password is incorrect";
+      } else if (e.code == 'requires-recent-login') {
+        error = "Please log in again to change your password";
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: ${e.toString()}")),
+      );
+    }
   }
 
   @override
