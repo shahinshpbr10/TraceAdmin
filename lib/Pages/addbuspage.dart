@@ -22,12 +22,25 @@ class _AddBusPageState extends State<AddBusPage> {
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
   File? busImageFile;
+  Map<String, File?> documentFiles = {};
+  String? selectedDocumentType;
+
+  final List<String> documentTypes = [
+    'Insurance',
+    'License',
+    'Smoke Test',
+    'Fitness Certificate',
+    'Permit',
+    'RC Book',
+    'Road Tax',
+    'Service Record'
+  ];
+
   List<Map<String, dynamic>> allWorkers = [];
   List<String> drivers = [];
   List<String> helpers = [];
   List<String> cleaners = [];
   List<String> others = [];
-
 
   String? selectedDriver;
   String? selectedHelper;
@@ -42,6 +55,16 @@ class _AddBusPageState extends State<AddBusPage> {
     if (result != null && result.files.single.path != null) {
       setState(() {
         busImageFile = File(result.files.single.path!);
+      });
+    }
+  }
+
+  void _pickDocument() async {
+    if (selectedDocumentType == null) return;
+    final result = await FilePicker.platform.pickFiles(type: FileType.any);
+    if (result != null && result.files.single.path != null) {
+      setState(() {
+        documentFiles[selectedDocumentType!] = File(result.files.single.path!);
       });
     }
   }
@@ -71,18 +94,16 @@ class _AddBusPageState extends State<AddBusPage> {
       await imageRef.putFile(busImageFile!);
       final imageUrl = await imageRef.getDownloadURL();
 
-      // Convert routes to Map<String, dynamic>
+      // Convert routes
       final Map<String, dynamic> routeMap = {
         for (var route in routes)
           route['name']: double.tryParse(route['price']) ?? 0,
       };
 
-      // Build today's date key
+      // Daily passenger report setup
       final now = DateTime.now();
-      final dateKey =
-          "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+      final dateKey = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
 
-      // Build multi-day supported report structure
       final Map<String, dynamic> dailyPassengerReport = {
         dateKey: {
           'passengerCountTotal': 0,
@@ -92,7 +113,7 @@ class _AddBusPageState extends State<AddBusPage> {
         }
       };
 
-      // Save to Firestore
+      // Save bus info
       await _firestore
           .collection('busOwners')
           .doc(uid)
@@ -109,6 +130,33 @@ class _AddBusPageState extends State<AddBusPage> {
         'dailyPassengerReport': dailyPassengerReport,
         'createdAt': FieldValue.serverTimestamp(),
       });
+
+      // Upload all documents
+      for (var entry in documentFiles.entries) {
+        final type = entry.key;
+        final file = entry.value;
+
+        if (file != null) {
+          final ext = file.path.split('.').last;
+          final docRef = _storage.ref().child('buses/$uid/$busId/documents/$type.$ext');
+          await docRef.putFile(file);
+          final fileUrl = await docRef.getDownloadURL();
+
+          await _firestore
+              .collection('busOwners')
+              .doc(uid)
+              .collection('buses')
+              .doc(busId)
+              .collection('documents')
+              .add({
+            'title': type,
+            'fileUrl': fileUrl,
+            'uploadedAt': FieldValue.serverTimestamp(),
+            'ownerType': 'Bus',
+            'ownerName': name,
+          });
+        }
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Bus added successfully")),
@@ -164,6 +212,7 @@ class _AddBusPageState extends State<AddBusPage> {
           .toList();
     });
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -177,7 +226,6 @@ class _AddBusPageState extends State<AddBusPage> {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Column(
           children: [
-            // Bus image
             Stack(
               children: [
                 CircleAvatar(
@@ -185,7 +233,7 @@ class _AddBusPageState extends State<AddBusPage> {
                   backgroundColor: Colors.white,
                   backgroundImage: busImageFile != null
                       ? FileImage(busImageFile!)
-                      : const AssetImage("assets/bus.png",  ) as ImageProvider,
+                      : const AssetImage("assets/bus.png") as ImageProvider,
                 ),
                 Positioned(
                   bottom: 0,
@@ -204,43 +252,29 @@ class _AddBusPageState extends State<AddBusPage> {
                 )
               ],
             ),
-
             const SizedBox(height: 24),
-
             _buildTextField("Bus Name", Iconsax.bus, busNameController),
             const SizedBox(height: 16),
             _buildTextField("Number Plate", Iconsax.car, numberPlateController),
             const SizedBox(height: 16),
-
-            _buildDropdown("Assign Driver", drivers, selectedDriver, (val) {
-              setState(() => selectedDriver = val);
-            }),
+            _buildDropdown("Assign Driver", drivers, selectedDriver, (val) => setState(() => selectedDriver = val)),
             const SizedBox(height: 24),
-            _buildDropdown("Assign Helper", helpers, selectedHelper, (val) {
-              setState(() => selectedHelper = val);
-            }),
+            _buildDropdown("Assign Helper", helpers, selectedHelper, (val) => setState(() => selectedHelper = val)),
             const SizedBox(height: 24),
-
-            // Routes Section
             const Align(
               alignment: Alignment.centerLeft,
-              child: Text(
-                "Routes",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
+              child: Text("Routes", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
             const SizedBox(height: 12),
             _buildTextField("Route Name", Iconsax.map, routeNameController),
             const SizedBox(height: 12),
-            _buildTextField("Price", Iconsax.money, routePriceController,
-                inputType: TextInputType.number),
+            _buildTextField("Price", Iconsax.money, routePriceController, inputType: TextInputType.number),
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerRight,
               child: TextButton.icon(
                 onPressed: () {
-                  if (routeNameController.text.isNotEmpty &&
-                      routePriceController.text.isNotEmpty) {
+                  if (routeNameController.text.isNotEmpty && routePriceController.text.isNotEmpty) {
                     setState(() {
                       routes.add({
                         'name': routeNameController.text,
@@ -255,8 +289,6 @@ class _AddBusPageState extends State<AddBusPage> {
                 label: const Text("Add Route"),
               ),
             ),
-
-            // Show Added Routes
             if (routes.isNotEmpty)
               Column(
                 children: routes.map((route) {
@@ -273,26 +305,29 @@ class _AddBusPageState extends State<AddBusPage> {
                         Text("${route['name']} - ₹${route['price']}"),
                         IconButton(
                           icon: const Icon(Iconsax.trash, size: 18, color: Colors.red),
-                          onPressed: () {
-                            setState(() => routes.remove(route));
-                          },
+                          onPressed: () => setState(() => routes.remove(route)),
                         )
                       ],
                     ),
                   );
                 }).toList(),
               ),
-
+            const SizedBox(height: 24),
+            _buildDropdown("Select Document Type", documentTypes, selectedDocumentType,
+                    (val) => setState(() => selectedDocumentType = val)),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              onPressed: _pickDocument,
+              icon: const Icon(Iconsax.document_upload),
+              label: Text(documentFiles[selectedDocumentType] != null ? "Change Document" : "Upload Document"),
+            ),
             const SizedBox(height: 30),
-
-            // Save Button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 icon: const Icon(Iconsax.save_2),
                 label: const Text("Save Bus"),
                 onPressed: _saveBusToFirebase,
-
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   backgroundColor: const Color(0xFF3D5AFE),
@@ -341,9 +376,7 @@ class _AddBusPageState extends State<AddBusPage> {
           labelText: label,
           border: InputBorder.none,
         ),
-        items: items
-            .map((item) => DropdownMenuItem(value: item, child: Text(item)))
-            .toList(),
+        items: items.map((item) => DropdownMenuItem(value: item, child: Text(item))).toList(),
         onChanged: onChanged,
       ),
     );

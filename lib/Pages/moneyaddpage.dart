@@ -89,18 +89,20 @@ class _AddExpensePageState extends State<AddExpensePage> {
       final expenseId = _firestore.collection('busOwners').doc(uid).collection('expenses').doc().id;
       String? receiptUrl;
 
+      // Upload receipt if provided
       if (receiptFile != null) {
         final ref = _storage.ref().child('expenses/$uid/$expenseId/receipt.jpg');
         await ref.putFile(receiptFile!);
         receiptUrl = await ref.getDownloadURL();
       }
 
+      // Find selected bus and worker IDs
       final busDoc = buses.firstWhere((b) => b['name'] == selectedBus);
       final workerDoc = workers.firstWhere((w) => w['name'] == selectedWorker);
-
       final busId = busDoc['busId'];
       final workerId = workerDoc['workerId'];
 
+      // Save expense entry
       await _firestore.collection('busOwners').doc(uid).collection('expenses').doc(expenseId).set({
         'expenseId': expenseId,
         'busId': busId,
@@ -112,9 +114,27 @@ class _AddExpensePageState extends State<AddExpensePage> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
+      // Save the document under the `documents` subcollection if a file exists
+      if (receiptUrl != null) {
+        await _firestore
+            .collection('busOwners')
+            .doc(uid)
+            .collection('expenses')
+            .doc(expenseId)
+            .collection('documents')
+            .add({
+          'title': 'Receipt - $selectedType',
+          'fileUrl': receiptUrl,
+          'uploadedAt': FieldValue.serverTimestamp(),
+          'ownerType': 'Expense',
+          'ownerName': selectedType,
+        });
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Expense added successfully")),
       );
+
       Navigator.pop(context);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -122,6 +142,8 @@ class _AddExpensePageState extends State<AddExpensePage> {
       );
     }
   }
+
+
 
   @override
   Widget build(BuildContext context) {

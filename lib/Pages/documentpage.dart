@@ -1,6 +1,13 @@
+import 'dart:io';
+
 import 'package:admin/Common/text_styles.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class DocumentsPage extends StatefulWidget {
   const DocumentsPage({Key? key}) : super(key: key);
@@ -11,6 +18,96 @@ class DocumentsPage extends StatefulWidget {
 
 class _DocumentsPageState extends State<DocumentsPage> {
   final TextEditingController _searchController = TextEditingController();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
+
+  List<Map<String, dynamic>> allDocuments = [];
+  List<Map<String, dynamic>> filteredDocuments = [];
+  String? selectedType;
+
+  final List<String> docTypes = [
+    'Bus Insurance',
+    'Bus License',
+    'Driver License',
+    'Pollution Test',
+    'Fitness Certificate',
+    'Permit',
+    'RC Book',
+    'Road Tax',
+    'Service Record',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDocuments();
+  }
+
+  Future<void> _fetchDocuments() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+
+    List<Map<String, dynamic>> docs = [];
+
+    final buses = await _firestore.collection('busOwners').doc(uid).collection('buses').get();
+    for (var bus in buses.docs) {
+      final docsSnap = await bus.reference.collection('documents').get();
+      for (var doc in docsSnap.docs) {
+        docs.add({...doc.data(), 'ownerType': 'Bus', 'ownerName': bus.data()['name']});
+      }
+    }
+
+    final workers = await _firestore.collection('busOwners').doc(uid).collection('workers').get();
+    for (var worker in workers.docs) {
+      final docsSnap = await worker.reference.collection('documents').get();
+      for (var doc in docsSnap.docs) {
+        docs.add({...doc.data(), 'ownerType': 'Worker', 'ownerName': worker.data()['name']});
+      }
+    }
+
+    final expenses = await _firestore.collection('busOwners').doc(uid).collection('expenses').get();
+    for (var expense in expenses.docs) {
+      final docsSnap = await expense.reference.collection('documents').get();
+      for (var doc in docsSnap.docs) {
+        docs.add({...doc.data(), 'ownerType': 'Expense', 'ownerName': expense.data()['type']});
+      }
+    }
+
+    final manualDocs = await _firestore.collection('busOwners').doc(uid).collection('manualDocuments').get();
+    for (var doc in manualDocs.docs) {
+      docs.add({...doc.data(), 'ownerType': 'Manual Upload', 'ownerName': 'General'});
+    }
+
+    setState(() {
+      allDocuments = docs;
+      filteredDocuments = docs;
+    });
+  }
+
+  void _uploadDocument() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null || selectedType == null) return;
+
+    final result = await FilePicker.platform.pickFiles(type: FileType.any);
+    if (result == null || result.files.single.path == null) return;
+
+    final file = File(result.files.single.path!);
+    final fileName = result.files.single.name;
+    final ref = _storage.ref().child('manualDocuments/$uid/${DateTime.now().millisecondsSinceEpoch}_$fileName');
+    await ref.putFile(file);
+    final fileUrl = await ref.getDownloadURL();
+
+    await _firestore.collection('busOwners').doc(uid).collection('manualDocuments').add({
+      'title': selectedType,
+      'fileUrl': fileUrl,
+      'uploadedAt': FieldValue.serverTimestamp(),
+      'ownerType': 'Manual Upload',
+      'ownerName': 'General'
+    });
+
+    _fetchDocuments();
+  }
 
   void _showFilterSheet() {
     showModalBottomSheet(
@@ -20,42 +117,31 @@ class _DocumentsPageState extends State<DocumentsPage> {
       ),
       builder: (_) {
         return Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(16),
           child: Wrap(
-            runSpacing: 10,
             children: [
-              const Text(
-                "Filter Documents",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
+              const Text("Filter Documents", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const Divider(),
-              ListTile(
-                leading: const Icon(Iconsax.document),
-                title: const Text("Bus Insurance"),
-                onTap: () {},
-              ),
-              ListTile(
-                leading: const Icon(Iconsax.document),
-                title: const Text("Driver License"),
-                onTap: () {},
-              ),
-              ListTile(
-                leading: const Icon(Iconsax.document),
-                title: const Text("Pollution Test"),
-                onTap: () {},
-              ),
-              const SizedBox(height: 10),
-              ElevatedButton.icon(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Iconsax.filter),
-                label: const Text("Apply Filter"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF3D5AFE),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
+              ...docTypes.map((type) => ListTile(
+                title: Text(type),
+                onTap: () {
+                  setState(() {
+                    selectedType = type;
+                    filteredDocuments = allDocuments.where((doc) => doc['title'] == type).toList();
+                  });
+                  Navigator.pop(context);
+                },
+              )),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    selectedType = null;
+                    filteredDocuments = allDocuments;
+                  });
+                  Navigator.pop(context);
+                },
+                child: const Text("Clear Filter"),
+              )
             ],
           ),
         );
@@ -63,207 +149,137 @@ class _DocumentsPageState extends State<DocumentsPage> {
     );
   }
 
-  Widget _buildSection(String title, List<String> docs) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 20),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              title,
-              style: AppTextStyles.smallBodyText.copyWith(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
-              ),
-            ),    GestureDetector(onTap: () {
-
-            },
-              child: Text(
-                'View All',
-                style:  AppTextStyles.caption.copyWith(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        GridView.builder(
-          itemCount: docs.length,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            childAspectRatio: 1.4,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-          ),
-          itemBuilder: (context, index) {
-            return GestureDetector(
-              onTap: () {
-                // View document logic
-              },
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Iconsax.document, size: 28, color: Color(0xFF3D5AFE)),
-                    const SizedBox(height: 10),
-                    Text(
-                      docs[index],
-                      style: AppTextStyles.smallBodyText.copyWith(fontSize: 13),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFEEF3FF),
       body: Column(
         children: [
-          // Curved AppBar
           ClipPath(
             clipper: CurveClipper(),
             child: Container(
               height: 160,
               width: double.infinity,
               color: const Color(0xFF3D5AFE),
-              padding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children:  [
+                children: [
                   Text(
                     "Documents",
-                    style:AppTextStyles.smallBodyText.copyWith(
+                    style: AppTextStyles.smallBodyText.copyWith(
                       color: Colors.white,
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Icon(Iconsax.folder_open, color: Colors.white, size: 26),
+                  const Icon(Iconsax.folder_open, color: Colors.white, size: 26),
                 ],
               ),
             ),
           ),
-
-          // Body content
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: ListView(
-                children: [
-                  // Search bar + filter
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(style: AppTextStyles.smallBodyText,
-                          controller: _searchController,
-                          decoration: InputDecoration(
-                            hintText: "Search documents...",
-                            prefixIcon: const Icon(Iconsax.search_normal),
-                            filled: true,
-                            fillColor: Colors.white,
-                            contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 16),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
-                          ),
-                        ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: "Search documents...",
+                      prefixIcon: const Icon(Iconsax.search_normal),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
                       ),
-                      const SizedBox(width: 10),
-                      Container(
-                        height: 48,
-                        width: 48,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: IconButton(
-                          icon: const Icon(Iconsax.setting_4,
-                              color: Color(0xFF3D5AFE)),
-                          onPressed: _showFilterSheet,
-                        ),
-                      ),
-                    ],
+                    ),
+                    onChanged: (query) {
+                      setState(() {
+                        filteredDocuments = allDocuments.where((doc) {
+                          return doc['title'].toString().toLowerCase().contains(query.toLowerCase());
+                        }).toList();
+                      });
+                    },
                   ),
-
-                  // Document Sections
-                  _buildSection("Bus Insurance", ["Insurance - KL58 2024.pdf"]),
-                  _buildSection("Bus License", ["Bus License - KL58.pdf","Bus License - KL58.pdf"]),
-                  _buildSection("Driver License", ["Driver - Ashik.pdf","Driver - Ashik.pdf"]),
-                  _buildSection("Pollution Test", ["Smoke Test - KL58 Oct 2024","Smoke Test - KL58 Oct 2024"]),
-                  _buildSection("Fitness Certificate", ["Fitness 2025 - KL58.pdf","Fitness 2025 - KL58.pdf"]),
-                  _buildSection("Permit", ["All India Permit - 2024","All India Permit - 2024"]),
-                  _buildSection("RC Book", ["RC Full - KL58.pdf","RC Full - KL58.pdf"]),
-                  _buildSection("Road Tax", ["Tax Receipt 2024"]),
-                  _buildSection("Service Record", ["Service Log Feb 2024"]),
-                ],
-              ),
+                ),
+                const SizedBox(width: 10),
+                IconButton(
+                  onPressed: _showFilterSheet,
+                  icon: const Icon(Iconsax.setting_4),
+                ),
+                IconButton(
+                  onPressed: _uploadDocument,
+                  icon: const Icon(Iconsax.document_download),
+                ),
+              ],
             ),
           ),
+          Expanded(
+            child: GridView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: filteredDocuments.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 1.3,
+              ),
+              itemBuilder: (context, index) {
+                final doc = filteredDocuments[index];
+                return GestureDetector(
+                  onTap: () => launchUrl(Uri.parse(doc['fileUrl'])),
+                  child: Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Iconsax.document, color: Color(0xFF3D5AFE), size: 32),
+                        const SizedBox(height: 8),
+                        Text(
+                          doc['title'] ?? 'No Title',
+                          style: AppTextStyles.smallBodyText,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "From: ${doc['ownerType']} - ${doc['ownerName'] ?? ''}",
+                          style: AppTextStyles.caption.copyWith(fontSize: 11),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          )
         ],
-      ),
-
-      // Add document button
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          // Add document flow
-        },
-        backgroundColor: const Color(0xFF3D5AFE),
-        icon: const Icon(Iconsax.add_circle,color: Colors.white,),
-        label:  Text("Add Document",style: AppTextStyles.smallBodyText.copyWith(color: Colors.white),),
       ),
     );
   }
 }
 
-// Curved AppBar clipper
 class CurveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     final path = Path();
     path.lineTo(0, size.height - 40);
-    path.quadraticBezierTo(
-        size.width / 2, size.height, size.width, size.height - 40);
+    path.quadraticBezierTo(size.width / 2, size.height, size.width, size.height - 40);
     path.lineTo(size.width, 0);
     path.close();
     return path;

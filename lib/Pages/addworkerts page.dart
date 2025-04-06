@@ -73,10 +73,9 @@ class _AddWorkerPageState extends State<AddWorkerPage> {
       final workerId = _firestore.collection('workers').doc().id;
 
       // Upload profile image
-      String? profileUrl;
       final profileRef = _storage.ref().child('workers/$uid/$workerId/profile.jpg');
       await profileRef.putFile(profileImageFile!);
-      profileUrl = await profileRef.getDownloadURL();
+      final profileUrl = await profileRef.getDownloadURL();
 
       // Upload license file if driver
       String? licenseFileUrl;
@@ -87,13 +86,14 @@ class _AddWorkerPageState extends State<AddWorkerPage> {
         licenseFileUrl = await licenseRef.getDownloadURL();
       }
 
-      // Save to Firestore
+      // Save worker to Firestore
       await _firestore
           .collection('busOwners')
           .doc(uid)
           .collection('workers')
           .doc(workerId)
           .set({
+        'workerId': workerId,
         'name': name,
         'phone': phone,
         'role': selectedRole,
@@ -103,7 +103,7 @@ class _AddWorkerPageState extends State<AddWorkerPage> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // If Driver, also add license as document
+      // Save license as a document if role is Driver
       if (selectedRole == "Driver" && licenseFileUrl != null) {
         await _firestore
             .collection('busOwners')
@@ -116,6 +116,8 @@ class _AddWorkerPageState extends State<AddWorkerPage> {
           'fileUrl': licenseFileUrl,
           'type': 'license',
           'uploadedAt': FieldValue.serverTimestamp(),
+          'ownerType': 'Worker',
+          'ownerName': name,
         });
       }
 
@@ -128,6 +130,7 @@ class _AddWorkerPageState extends State<AddWorkerPage> {
       _showError("Error: ${e.toString()}");
     }
   }
+
 
 
   void _showError(String message) {
