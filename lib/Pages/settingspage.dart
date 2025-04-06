@@ -1,7 +1,9 @@
 import 'package:admin/Pages/aboutpage.dart';
 import 'package:admin/Pages/changepasswordpage.dart';
+import 'package:admin/Pages/login.dart';
 import 'package:admin/Pages/privacypolicypage.dart';
 import 'package:admin/Pages/profile_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
@@ -109,9 +111,12 @@ class SettingsPage extends StatelessWidget {
                               child: const Text("Cancel"),
                             ),
                             ElevatedButton(
-                              onPressed: () {
-                                Navigator.pop(context);
-                                // Add logout logic here
+                              onPressed: () async {
+                                Navigator.pop(context); // close dialog
+                                await FirebaseAuth.instance.signOut(); // Sign out the user
+
+                                // Navigate to login screen
+                               Navigator.of(context).pushAndRemoveUntil(CupertinoPageRoute(builder: (context) => LoginPage(),), (route) => false,);
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF3D5AFE),
