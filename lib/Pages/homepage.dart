@@ -224,7 +224,7 @@ Widget buildHomeUI(BuildContext context, String username, String profilePic) {
                             onPressed: () {
                               Navigator.of(context).push(CupertinoPageRoute(
                                 builder: (context) {
-                                  return MoneyTransactionPage();
+                                  return AddExpensePage();
                                 },
                               ));
                             },

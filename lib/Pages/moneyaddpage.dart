@@ -1,39 +1,126 @@
+import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:intl/intl.dart';
 
-class MoneyTransactionPage extends StatefulWidget {
-  const MoneyTransactionPage({super.key});
+class AddExpensePage extends StatefulWidget {
+  const AddExpensePage({super.key});
 
   @override
-  State<MoneyTransactionPage> createState() => _MoneyTransactionPageState();
+  State<AddExpensePage> createState() => _AddExpensePageState();
 }
 
-class _MoneyTransactionPageState extends State<MoneyTransactionPage> {
-  final TextEditingController revenueController = TextEditingController();
-  final TextEditingController driverPayController = TextEditingController();
-  final TextEditingController helperPayController = TextEditingController();
-  final TextEditingController insuranceController = TextEditingController();
-  final TextEditingController fitnessController = TextEditingController();
-  final TextEditingController otherExpenseController = TextEditingController();
+class _AddExpensePageState extends State<AddExpensePage> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
 
-  double totalExpense = 0;
-  double net = 0;
+  List<Map<String, dynamic>> buses = [];
+  List<Map<String, dynamic>> workers = [];
 
-  void _calculate() {
-    double revenue = double.tryParse(revenueController.text) ?? 0;
-    double driver = double.tryParse(driverPayController.text) ?? 0;
-    double helper = double.tryParse(helperPayController.text) ?? 0;
-    double insurance = double.tryParse(insuranceController.text) ?? 0;
-    double fitness = double.tryParse(fitnessController.text) ?? 0;
-    double other = double.tryParse(otherExpenseController.text) ?? 0;
+  String? selectedBus;
+  String? selectedWorker;
+  String? selectedType;
+  DateTime selectedDate = DateTime.now();
+  final TextEditingController amountController = TextEditingController();
+  File? receiptFile;
 
-    double total = driver + helper + insurance + fitness + other;
-    double profitLoss = revenue - total;
+  final List<String> expenseTypes = [
+    'Diesel',
+    'Worker Payment',
+    'Insurance',
+    'Maintenance',
+    'Fitness',
+    'Other'
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDropdownData();
+  }
+
+  Future<void> _fetchDropdownData() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+
+    final busSnap = await _firestore.collection('busOwners').doc(uid).collection('buses').get();
+    final workerSnap = await _firestore.collection('busOwners').doc(uid).collection('workers').get();
 
     setState(() {
-      totalExpense = total;
-      net = profitLoss;
+      buses = busSnap.docs.map((doc) {
+        final data = doc.data();
+        data['busId'] = doc.id;
+        return data;
+      }).toList();
+
+      workers = workerSnap.docs.map((doc) {
+        final data = doc.data();
+        data['workerId'] = doc.id;
+        return data;
+      }).toList();
     });
+  }
+
+  Future<void> _pickReceiptFile() async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.image);
+    if (result != null && result.files.single.path != null) {
+      setState(() => receiptFile = File(result.files.single.path!));
+    }
+  }
+
+  Future<void> _submitExpense() async {
+    final uid = _auth.currentUser?.uid;
+    final amount = double.tryParse(amountController.text.trim()) ?? 0;
+
+    if (selectedBus == null || selectedWorker == null || selectedType == null || amount == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please fill all fields")),
+      );
+      return;
+    }
+
+    try {
+      final expenseId = _firestore.collection('busOwners').doc(uid).collection('expenses').doc().id;
+      String? receiptUrl;
+
+      if (receiptFile != null) {
+        final ref = _storage.ref().child('expenses/$uid/$expenseId/receipt.jpg');
+        await ref.putFile(receiptFile!);
+        receiptUrl = await ref.getDownloadURL();
+      }
+
+      final busDoc = buses.firstWhere((b) => b['name'] == selectedBus);
+      final workerDoc = workers.firstWhere((w) => w['name'] == selectedWorker);
+
+      final busId = busDoc['busId'];
+      final workerId = workerDoc['workerId'];
+
+      await _firestore.collection('busOwners').doc(uid).collection('expenses').doc(expenseId).set({
+        'expenseId': expenseId,
+        'busId': busId,
+        'workerId': workerId,
+        'type': selectedType,
+        'amount': amount,
+        'date': selectedDate.toIso8601String(),
+        'receiptUrl': receiptUrl,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Expense added successfully")),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    }
   }
 
   @override
@@ -42,72 +129,65 @@ class _MoneyTransactionPageState extends State<MoneyTransactionPage> {
       backgroundColor: const Color(0xFFEEF3FF),
       appBar: AppBar(
         backgroundColor: const Color(0xFF3D5AFE),
-        title: const Text("Money Transaction"),
+        title: const Text("Add Expense"),
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildInput("Total Revenue", Iconsax.money, revenueController),
+            _dropdown("Select Bus", buses.map((e) => e['name'].toString()).toList(), selectedBus,
+                    (val) => setState(() => selectedBus = val)),
             const SizedBox(height: 16),
-            _buildInput("Driver Payment", Iconsax.user, driverPayController),
+            _dropdown("Select Worker", workers.map((e) => e['name'].toString()).toList(), selectedWorker,
+                    (val) => setState(() => selectedWorker = val)),
             const SizedBox(height: 16),
-            _buildInput("Helper Payment", Iconsax.user_tag, helperPayController),
+            _dropdown("Expense Type", expenseTypes, selectedType,
+                    (val) => setState(() => selectedType = val)),
             const SizedBox(height: 16),
-            _buildInput("Bus Insurance", Iconsax.shield_tick, insuranceController),
+            _datePicker(),
             const SizedBox(height: 16),
-            _buildInput("Fitness Test", Iconsax.chart_1, fitnessController),
+            _textField("Amount", amountController, Iconsax.money),
             const SizedBox(height: 16),
-            _buildInput("Other Expenses", Iconsax.briefcase, otherExpenseController),
-
-            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _pickReceiptFile,
+              icon: const Icon(Iconsax.document_upload),
+              label: Text(receiptFile == null ? "Upload Receipt" : "Change Receipt"),
+            ),
+            const SizedBox(height: 30),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                icon: const Icon(Iconsax.calculator),
-                label: const Text("Calculate"),
-                onPressed: _calculate,
+                onPressed: _submitExpense,
+                icon: const Icon(Iconsax.save_2),
+                label: const Text("Save Expense"),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF3D5AFE),
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ),
-
-            const SizedBox(height: 30),
-
-            // Summary
-            if (totalExpense > 0 || revenueController.text.isNotEmpty)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("💰 Total Expense: ₹${totalExpense.toStringAsFixed(2)}",
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-                  const SizedBox(height: 10),
-                  Text(
-                    net >= 0
-                        ? "✅ Profit: ₹${net.toStringAsFixed(2)}"
-                        : "❌ Loss: ₹${net.abs().toStringAsFixed(2)}",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: net >= 0 ? Colors.green : Colors.red,
-                    ),
-                  ),
-                ],
-              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildInput(String label, IconData icon, TextEditingController controller) {
+  Widget _dropdown(String label, List<String> items, String? selected, ValueChanged<String?> onChanged) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+      child: DropdownButtonFormField<String>(
+        value: selected,
+        decoration: InputDecoration(labelText: label, border: InputBorder.none),
+        items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+        onChanged: onChanged,
+      ),
+    );
+  }
+
+  Widget _textField(String label, TextEditingController controller, IconData icon) {
     return TextField(
       controller: controller,
       keyboardType: TextInputType.number,
@@ -116,9 +196,32 @@ class _MoneyTransactionPageState extends State<MoneyTransactionPage> {
         prefixIcon: Icon(icon),
         filled: true,
         fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+      ),
+    );
+  }
+
+  Widget _datePicker() {
+    return InkWell(
+      onTap: () async {
+        DateTime? picked = await showDatePicker(
+          context: context,
+          initialDate: selectedDate,
+          firstDate: DateTime(2022),
+          lastDate: DateTime(2030),
+        );
+        if (picked != null) setState(() => selectedDate = picked);
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(DateFormat('yyyy-MM-dd').format(selectedDate)),
+            const Icon(Iconsax.calendar)
+          ],
         ),
       ),
     );
