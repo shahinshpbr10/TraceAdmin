@@ -103,6 +103,22 @@ class _AddWorkerPageState extends State<AddWorkerPage> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
+      // If Driver, also add license as document
+      if (selectedRole == "Driver" && licenseFileUrl != null) {
+        await _firestore
+            .collection('busOwners')
+            .doc(uid)
+            .collection('workers')
+            .doc(workerId)
+            .collection('documents')
+            .add({
+          'title': 'Driver License',
+          'fileUrl': licenseFileUrl,
+          'type': 'license',
+          'uploadedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Worker added successfully")),
       );
@@ -112,6 +128,7 @@ class _AddWorkerPageState extends State<AddWorkerPage> {
       _showError("Error: ${e.toString()}");
     }
   }
+
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
