@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'package:admin/Pages/login.dart';
+import 'package:admin/Pages/bottomnavbar.dart'; // or your home page
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lottie/lottie.dart';
-
 import '../Common/text_styles.dart';
 
 class SplashPage extends StatefulWidget {
@@ -14,13 +15,31 @@ class SplashPage extends StatefulWidget {
 }
 
 class _SplashPageState extends State<SplashPage> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
   @override
   void initState() {
     super.initState();
+    Timer(const Duration(seconds: 3), _checkAuth);
+  }
 
-    Timer(const Duration(seconds: 7), () {
-      Navigator.pushAndRemoveUntil(context, CupertinoPageRoute(builder: (context) => LoginPage(),) , (route) => false,);
-    });
+  void _checkAuth() {
+    final user = _auth.currentUser;
+    if (user != null) {
+      // User is logged in
+      Navigator.pushAndRemoveUntil(
+        context,
+        CupertinoPageRoute(builder: (context) => BottomNavPage()),
+            (route) => false,
+      );
+    } else {
+      // User is not logged in
+      Navigator.pushAndRemoveUntil(
+        context,
+        CupertinoPageRoute(builder: (context) =>  LoginPage()),
+            (route) => false,
+      );
+    }
   }
 
   @override
@@ -42,28 +61,24 @@ class _SplashPageState extends State<SplashPage> {
                 fit: BoxFit.contain,
               ),
             ),
-
             const SizedBox(height: 30),
-
             // App Name
             Text(
               "Trace Admin",
               style: AppTextStyles.smallBodyText.copyWith(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF2E3A59),
+                color: const Color(0xFF2E3A59),
               ),
             ),
-
             const SizedBox(height: 10),
-
             // Tagline
-             Text(
+            Text(
               "Manage. Track. Travel.",
               style: AppTextStyles.smallBodyText.copyWith(
                 fontSize: 16,
                 fontWeight: FontWeight.w400,
-                color: Color(0xFF6C7A96),
+                color: const Color(0xFF6C7A96),
               ),
             ),
           ],
