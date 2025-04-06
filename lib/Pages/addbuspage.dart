@@ -1,3 +1,9 @@
+import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 
@@ -11,10 +17,17 @@ class AddBusPage extends StatefulWidget {
 class _AddBusPageState extends State<AddBusPage> {
   final TextEditingController busNameController = TextEditingController();
   final TextEditingController numberPlateController = TextEditingController();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
 
-  // Mock worker list
-  final List<String> drivers = ['Ashik', 'Haneef'];
-  final List<String> helpers = ['Shamim', 'Suhail'];
+  File? busImageFile;
+  List<Map<String, dynamic>> allWorkers = [];
+  List<String> drivers = [];
+  List<String> helpers = [];
+  List<String> cleaners = [];
+  List<String> others = [];
+
 
   String? selectedDriver;
   String? selectedHelper;
@@ -24,6 +37,133 @@ class _AddBusPageState extends State<AddBusPage> {
   final TextEditingController routeNameController = TextEditingController();
   final TextEditingController routePriceController = TextEditingController();
 
+  Future<void> _pickBusImage() async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.image);
+    if (result != null && result.files.single.path != null) {
+      setState(() {
+        busImageFile = File(result.files.single.path!);
+      });
+    }
+  }
+
+  Future<void> _saveBusToFirebase() async {
+    final uid = _auth.currentUser?.uid;
+    final name = busNameController.text.trim();
+    final numberPlate = numberPlateController.text.trim();
+
+    if (name.isEmpty ||
+        numberPlate.isEmpty ||
+        selectedDriver == null ||
+        selectedHelper == null ||
+        busImageFile == null ||
+        routes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please fill all fields, upload image & add at least one route.")),
+      );
+      return;
+    }
+
+    try {
+      final busId = _firestore.collection('buses').doc().id;
+
+      // Upload bus image
+      final imageRef = _storage.ref().child('buses/$uid/$busId/bus.jpg');
+      await imageRef.putFile(busImageFile!);
+      final imageUrl = await imageRef.getDownloadURL();
+
+      // Convert routes to Map<String, dynamic>
+      final Map<String, dynamic> routeMap = {
+        for (var route in routes)
+          route['name']: double.tryParse(route['price']) ?? 0,
+      };
+
+      // Build today's date key
+      final now = DateTime.now();
+      final dateKey =
+          "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+
+      // Build multi-day supported report structure
+      final Map<String, dynamic> dailyPassengerReport = {
+        dateKey: {
+          'passengerCountTotal': 0,
+          'entryCount': 0,
+          'exitCount': 0,
+          'revenueOfTheDay': 0,
+        }
+      };
+
+      // Save to Firestore
+      await _firestore
+          .collection('busOwners')
+          .doc(uid)
+          .collection('buses')
+          .doc(busId)
+          .set({
+        'busId': busId,
+        'name': name,
+        'numberPlate': numberPlate,
+        'driver': selectedDriver,
+        'helper': selectedHelper,
+        'routes': routeMap,
+        'image': imageUrl,
+        'dailyPassengerReport': dailyPassengerReport,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Bus added successfully")),
+      );
+
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchWorkers();
+  }
+
+  Future<void> _fetchWorkers() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('busOwners')
+        .doc(uid)
+        .collection('workers')
+        .get();
+
+    final List<Map<String, dynamic>> fetched = snapshot.docs.map((doc) => doc.data()).toList();
+
+    setState(() {
+      allWorkers = fetched;
+
+      drivers = fetched
+          .where((w) => w['role'] == 'Driver')
+          .map((w) => w['name'] as String)
+          .toList();
+
+      helpers = fetched
+          .where((w) => w['role'] == 'Helper')
+          .map((w) => w['name'] as String)
+          .toList();
+
+      cleaners = fetched
+          .where((w) => w['role'] == 'Cleaner')
+          .map((w) => w['name'] as String)
+          .toList();
+
+      others = fetched
+          .where((w) => w['role'] == 'Other')
+          .map((w) => w['name'] as String)
+          .toList();
+    });
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -40,25 +180,31 @@ class _AddBusPageState extends State<AddBusPage> {
             // Bus image
             Stack(
               children: [
-                const CircleAvatar(
+                CircleAvatar(
                   radius: 50,
                   backgroundColor: Colors.white,
-                  backgroundImage: AssetImage("assets/images/bus.png"),
+                  backgroundImage: busImageFile != null
+                      ? FileImage(busImageFile!)
+                      : const AssetImage("assets/images/bus.png") as ImageProvider,
                 ),
                 Positioned(
                   bottom: 0,
                   right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Color(0xFF3D5AFE),
+                  child: GestureDetector(
+                    onTap: _pickBusImage,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Color(0xFF3D5AFE),
+                      ),
+                      child: const Icon(Iconsax.camera, color: Colors.white, size: 16),
                     ),
-                    child: const Icon(Iconsax.camera, color: Colors.white, size: 16),
                   ),
                 )
               ],
             ),
+
             const SizedBox(height: 24),
 
             _buildTextField("Bus Name", Iconsax.bus, busNameController),
@@ -66,11 +212,10 @@ class _AddBusPageState extends State<AddBusPage> {
             _buildTextField("Number Plate", Iconsax.car, numberPlateController),
             const SizedBox(height: 16),
 
-            // Role Assignment
             _buildDropdown("Assign Driver", drivers, selectedDriver, (val) {
               setState(() => selectedDriver = val);
             }),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             _buildDropdown("Assign Helper", helpers, selectedHelper, (val) {
               setState(() => selectedHelper = val);
             }),
@@ -146,9 +291,8 @@ class _AddBusPageState extends State<AddBusPage> {
               child: ElevatedButton.icon(
                 icon: const Icon(Iconsax.save_2),
                 label: const Text("Save Bus"),
-                onPressed: () {
-                  // TODO: Save bus to Firebase or backend
-                },
+                onPressed: _saveBusToFirebase,
+
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   backgroundColor: const Color(0xFF3D5AFE),
