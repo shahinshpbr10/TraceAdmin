@@ -3,6 +3,7 @@ import 'package:admin/Pages/addbuspage.dart';
 import 'package:admin/Pages/addworkerts%20page.dart';
 import 'package:admin/Pages/moneyaddpage.dart';
 import 'package:admin/Pages/viewbuspage.dart';
+import 'package:admin/Pages/viewrevenupage.dart';
 import 'package:admin/Pages/viewworkers.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -29,10 +30,9 @@ class _HomePageState extends State<HomePage> {
     final uid = _auth.currentUser!.uid;
     _userFuture = _firestore.collection('busOwners').doc(uid).get();
   }
+
   @override
   Widget build(BuildContext context) {
-
-
     return Scaffold(
       backgroundColor: const Color(0xFFEEF3FF),
       body: FutureBuilder<DocumentSnapshot>(
@@ -49,7 +49,8 @@ class _HomePageState extends State<HomePage> {
 
           final userData = snapshot.data!.data() as Map<String, dynamic>;
           final username = userData['name'] ?? "User";
-          final profilePic = userData['profilePic'] ?? ""; // Make sure this is a valid URL or path
+          final profilePic = userData['profilePic'] ??
+              ""; // Make sure this is a valid URL or path
 
           return buildHomeUI(context, username, profilePic);
         },
@@ -74,6 +75,7 @@ class CurveClipper extends CustomClipper<Path> {
   @override
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
+
 class _LegendItem extends StatelessWidget {
   final Color color;
   final String label;
@@ -99,6 +101,7 @@ class _LegendItem extends StatelessWidget {
     );
   }
 }
+
 Widget buildHomeUI(BuildContext context, String username, String profilePic) {
   return Column(
     children: [
@@ -127,13 +130,12 @@ Widget buildHomeUI(BuildContext context, String username, String profilePic) {
                         ? NetworkImage(profilePic)
                         : const AssetImage('assets/b1.png') as ImageProvider,
                   ),
-
                 ],
               ),
               const SizedBox(height: 10),
               Text(
                 "Hi, $username 👋",
-                style:  AppTextStyles.smallBodyText.copyWith(
+                style: AppTextStyles.smallBodyText.copyWith(
                   color: Colors.white,
                   fontSize: 24,
                   fontWeight: FontWeight.w600,
@@ -141,7 +143,7 @@ Widget buildHomeUI(BuildContext context, String username, String profilePic) {
               ),
               Text(
                 "Welcome back to Trace Admin",
-                style:AppTextStyles.smallBodyText.copyWith (
+                style: AppTextStyles.smallBodyText.copyWith(
                   color: Colors.white70,
                   fontSize: 14,
                 ),
@@ -177,13 +179,13 @@ Widget buildHomeUI(BuildContext context, String username, String profilePic) {
                     // Header with icon
                     Column(
                       children: [
-
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                        
                             Row(
-                              children: [ const Icon(Iconsax.chart5, color: Color(0xFF3D5AFE)),
+                              children: [
+                                const Icon(Iconsax.chart5,
+                                    color: Color(0xFF3D5AFE)),
                                 const SizedBox(width: 8),
                                 Text(
                                   "Revenue Summary",
@@ -194,23 +196,39 @@ Widget buildHomeUI(BuildContext context, String username, String profilePic) {
                                 ),
                               ],
                             ),
-                            const Row(
+                             Row(
                               children: [
-                                Text("View All",style: AppTextStyles.caption,),
-                        
+                                GestureDetector(
+                                  onTap:() {
+                                    Navigator.of(context).push(CupertinoPageRoute(
+                                      builder: (context) {
+                                        return ViewRevenuePage();
+                                      },
+                                    ));
+                                  },
+                                  child: Text(
+                                    "View All",
+                                    style: AppTextStyles.caption,
+                                  ),
+                                ),
                               ],
                             )
                           ],
                         ),
                       ],
-                    ),  Row(
+                    ),
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        IconButton(onPressed: () {
-Navigator.of(context).push(CupertinoPageRoute(builder: (context) {
-  return MoneyTransactionPage();
-},));
-                        }, icon: Icon(Iconsax.additem)),
+                        IconButton(
+                            onPressed: () {
+                              Navigator.of(context).push(CupertinoPageRoute(
+                                builder: (context) {
+                                  return MoneyTransactionPage();
+                                },
+                              ));
+                            },
+                            icon: Icon(Iconsax.additem)),
                       ],
                     ),
                     const SizedBox(height: 20),
@@ -228,7 +246,7 @@ Navigator.of(context).push(CupertinoPageRoute(builder: (context) {
                               value: 40,
                               title: '40%',
                               radius: 50,
-                              titleStyle:  AppTextStyles.smallBodyText.copyWith(
+                              titleStyle: AppTextStyles.smallBodyText.copyWith(
                                 color: Colors.white,
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
@@ -239,7 +257,7 @@ Navigator.of(context).push(CupertinoPageRoute(builder: (context) {
                               value: 30,
                               title: '30%',
                               radius: 50,
-                              titleStyle:  AppTextStyles.smallBodyText.copyWith(
+                              titleStyle: AppTextStyles.smallBodyText.copyWith(
                                 color: Colors.white,
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
@@ -275,7 +293,6 @@ Navigator.of(context).push(CupertinoPageRoute(builder: (context) {
                 ),
               ),
 
-
               const SizedBox(height: 20),
 
               // My Bus Card
@@ -298,7 +315,8 @@ Navigator.of(context).push(CupertinoPageRoute(builder: (context) {
                   children: [
                     Container(
                       decoration: const BoxDecoration(
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                        borderRadius:
+                            BorderRadius.vertical(top: Radius.circular(16)),
                         gradient: LinearGradient(
                           colors: [Color(0xFF3D5AFE), Color(0xFF7986CB)],
                         ),
@@ -306,10 +324,14 @@ Navigator.of(context).push(CupertinoPageRoute(builder: (context) {
                       padding: const EdgeInsets.all(12),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children:  [
+                        children: [
                           Row(
                             children: [
-                              Image(image: AssetImage('assets/bus.png'),color: Colors.white,width: 30,),
+                              Image(
+                                image: AssetImage('assets/bus.png'),
+                                color: Colors.white,
+                                width: 30,
+                              ),
                               SizedBox(width: 8),
                               Text(
                                 "My Bus",
@@ -321,40 +343,52 @@ Navigator.of(context).push(CupertinoPageRoute(builder: (context) {
                               ),
                             ],
                           ),
-                          GestureDetector(onTap: () {
-                            Navigator.of(context).push(CupertinoPageRoute(builder: (context) {
-                              return ViewBusesPage();
-                            },));
-                          },
-                              child: Text("view all",style: AppTextStyles.caption.copyWith(color: Colors.white),))
-
+                          GestureDetector(
+                              onTap: () {
+                                Navigator.of(context).push(CupertinoPageRoute(
+                                  builder: (context) {
+                                    return ViewBusesPage();
+                                  },
+                                ));
+                              },
+                              child: Text(
+                                "view all",
+                                style: AppTextStyles.caption
+                                    .copyWith(color: Colors.white),
+                              ))
                         ],
                       ),
                     ),
                     Padding(
                       padding: const EdgeInsets.all(16.0),
-                      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: const [
-                              Text("Total Buses: 6", style: TextStyle(fontSize: 14)),
+                              Text("Total Buses: 6",
+                                  style: TextStyle(fontSize: 14)),
                               SizedBox(height: 4),
-                              Text("Active Today: 4", style: TextStyle(fontSize: 14)),
+                              Text("Active Today: 4",
+                                  style: TextStyle(fontSize: 14)),
                             ],
                           ),
-                          IconButton(onPressed: () {
-                            Navigator.of(context).push(CupertinoPageRoute(builder: (context) {
-                              return AddBusPage();
-                            },));
-                          }, icon: Icon(Iconsax.additem))
+                          IconButton(
+                              onPressed: () {
+                                Navigator.of(context).push(CupertinoPageRoute(
+                                  builder: (context) {
+                                    return AddBusPage();
+                                  },
+                                ));
+                              },
+                              icon: Icon(Iconsax.additem))
                         ],
                       ),
                     ),
                   ],
                 ),
               ),
-
 
               const SizedBox(height: 20),
 
@@ -376,22 +410,23 @@ Navigator.of(context).push(CupertinoPageRoute(builder: (context) {
                   children: [
                     Container(
                       decoration: const BoxDecoration(
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                        borderRadius:
+                            BorderRadius.vertical(top: Radius.circular(16)),
                         gradient: LinearGradient(
                           colors: [Color(0xFF3D5AFE), Color(0xFF7986CB)],
                         ),
                       ),
                       padding: const EdgeInsets.all(12),
-                      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children:  [
-
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
                           Row(
-
-                            children: [ Icon(Icons.people_alt, color: Colors.white),
+                            children: [
+                              Icon(Icons.people_alt, color: Colors.white),
                               SizedBox(width: 8),
                               Text(
                                 "My Workers",
-                                style:AppTextStyles.smallBodyText.copyWith(
+                                style: AppTextStyles.smallBodyText.copyWith(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
@@ -399,42 +434,56 @@ Navigator.of(context).push(CupertinoPageRoute(builder: (context) {
                               ),
                             ],
                           ),
-                          GestureDetector(onTap: () {
-                            Navigator.of(context).push(CupertinoPageRoute(builder: (context) {
-                              return ViewWorkersPage();
-                            },));
-                          },
-                              child: Text("View all",style: AppTextStyles.caption.copyWith(color: Colors.white),))
+                          GestureDetector(
+                              onTap: () {
+                                Navigator.of(context).push(CupertinoPageRoute(
+                                  builder: (context) {
+                                    return ViewWorkersPage();
+                                  },
+                                ));
+                              },
+                              child: Text(
+                                "View all",
+                                style: AppTextStyles.caption
+                                    .copyWith(color: Colors.white),
+                              ))
                         ],
                       ),
                     ),
                     Padding(
-                      padding:  EdgeInsets.all(16.0),
+                      padding: EdgeInsets.all(16.0),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children:  [
-                              Text("Total Staff: 12", style: TextStyle(fontSize: 14)),
+                            children: [
+                              Text("Total Staff: 12",
+                                  style: TextStyle(fontSize: 14)),
                               SizedBox(height: 4),
-                              Text("Drivers: 6", style: AppTextStyles.smallBodyText.copyWith(fontSize: 14)),
-                              Text("Helpers: 6", style: AppTextStyles.smallBodyText.copyWith(fontSize: 14)),
+                              Text("Drivers: 6",
+                                  style: AppTextStyles.smallBodyText
+                                      .copyWith(fontSize: 14)),
+                              Text("Helpers: 6",
+                                  style: AppTextStyles.smallBodyText
+                                      .copyWith(fontSize: 14)),
                             ],
                           ),
-
-                          IconButton(onPressed: () {
-Navigator.of(context).push(CupertinoPageRoute(builder: (context) {
-  return AddWorkerPage();
-},));
-                          }, icon: Icon(Iconsax.additem))
+                          IconButton(
+                              onPressed: () {
+                                Navigator.of(context).push(CupertinoPageRoute(
+                                  builder: (context) {
+                                    return AddWorkerPage();
+                                  },
+                                ));
+                              },
+                              icon: Icon(Iconsax.additem))
                         ],
                       ),
                     ),
                   ],
                 ),
               ),
-
             ],
           ),
         ),
