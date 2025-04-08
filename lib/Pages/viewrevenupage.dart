@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:iconsax/iconsax.dart';
@@ -11,35 +13,42 @@ class ViewRevenuePage extends StatefulWidget {
 
 class _ViewRevenuePageState extends State<ViewRevenuePage> {
   final TextEditingController _searchController = TextEditingController();
-
-  List<Map<String, dynamic>> transactions = [
-    {
-      'event': 'Trip 1',
-      'date': '2024-04-01',
-      'revenue': 6000.0,
-      'expense': 3500.0,
-    },
-    {
-      'event': 'Trip 2',
-      'date': '2024-04-02',
-      'revenue': 7200.0,
-      'expense': 4000.0,
-    },
-    {
-      'event': 'Trip 3',
-      'date': '2024-04-03',
-      'revenue': 4500.0,
-      'expense': 2200.0,
-    },
-  ];
-
+  List<Map<String, dynamic>> transactions = [];
   String? selectedDate;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchExpenses();
+  }
+
+  Future<void> fetchExpenses() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final snapshot = await FirebaseFirestore.instance
+        .collection('busOwners')
+        .doc(uid)
+        .collection('expenses')
+        .orderBy('createdAt', descending: true)
+        .get();
+
+    setState(() {
+      transactions = snapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'event': data['type'],
+          'date': (data['createdAt'] as Timestamp).toDate().toIso8601String().split('T')[0],
+          'revenue': 0.0,
+          'expense': data['amount'] * 1.0,
+        };
+      }).toList();
+    });
+  }
 
   void _showFilterSheet() {
     showModalBottomSheet(
       context: context,
-      shape:
-      const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) {
         return Padding(
           padding: const EdgeInsets.all(16.0),
@@ -63,7 +72,7 @@ class _ViewRevenuePageState extends State<ViewRevenuePage> {
                   setState(() => selectedDate = null);
                   Navigator.pop(context);
                 },
-              ),
+              )
             ],
           ),
         );
@@ -86,7 +95,6 @@ class _ViewRevenuePageState extends State<ViewRevenuePage> {
       backgroundColor: const Color(0xFFEEF3FF),
       body: Column(
         children: [
-          // Curved AppBar
           ClipPath(
             clipper: CurveClipper(),
             child: Container(
@@ -99,16 +107,13 @@ class _ViewRevenuePageState extends State<ViewRevenuePage> {
                 children: const [
                   Text(
                     "Revenue Overview",
-                    style: TextStyle(
-                        color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                    style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                   Icon(Iconsax.graph, color: Colors.white, size: 28),
                 ],
               ),
             ),
           ),
-
-          // Search + Filter Row
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
@@ -153,8 +158,6 @@ class _ViewRevenuePageState extends State<ViewRevenuePage> {
               ],
             ),
           ),
-
-          // Chart Section Title
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Align(
@@ -165,8 +168,6 @@ class _ViewRevenuePageState extends State<ViewRevenuePage> {
               ),
             ),
           ),
-
-          // Bar Chart
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: SizedBox(
@@ -177,16 +178,8 @@ class _ViewRevenuePageState extends State<ViewRevenuePage> {
                     int x = entry.key;
                     final tx = entry.value;
                     return BarChartGroupData(x: x, barRods: [
-                      BarChartRodData(
-                        toY: tx['revenue'],
-                        color: Colors.green,
-                        width: 14,
-                      ),
-                      BarChartRodData(
-                        toY: tx['expense'],
-                        color: Colors.red,
-                        width: 14,
-                      ),
+                      BarChartRodData(toY: tx['revenue'], color: Colors.green, width: 14),
+                      BarChartRodData(toY: tx['expense'], color: Colors.red, width: 14),
                     ]);
                   }).toList(),
                   titlesData: FlTitlesData(
@@ -205,9 +198,7 @@ class _ViewRevenuePageState extends State<ViewRevenuePage> {
                         },
                       ),
                     ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: true),
-                    ),
+                    leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true)),
                   ),
                   gridData: FlGridData(show: true),
                   borderData: FlBorderData(show: false),
@@ -216,8 +207,6 @@ class _ViewRevenuePageState extends State<ViewRevenuePage> {
               ),
             ),
           ),
-
-          // Section title
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             child: Align(
@@ -228,8 +217,6 @@ class _ViewRevenuePageState extends State<ViewRevenuePage> {
               ),
             ),
           ),
-
-          // Transaction List
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -260,10 +247,8 @@ class _ViewRevenuePageState extends State<ViewRevenuePage> {
                       const SizedBox(height: 4),
                       Text("📅 Date: ${tx['date']}", style: const TextStyle(color: Colors.grey)),
                       const SizedBox(height: 6),
-                      Text("💰 Revenue: ₹${tx['revenue']}",
-                          style: const TextStyle(color: Colors.green)),
-                      Text("💸 Expenses: ₹${tx['expense']}",
-                          style: const TextStyle(color: Colors.red)),
+                      Text("💰 Revenue: ₹${tx['revenue']}", style: const TextStyle(color: Colors.green)),
+                      Text("💸 Expenses: ₹${tx['expense']}", style: const TextStyle(color: Colors.red)),
                       const SizedBox(height: 4),
                       Text(
                         tx['revenue'] - tx['expense'] >= 0
@@ -284,15 +269,14 @@ class _ViewRevenuePageState extends State<ViewRevenuePage> {
       ),
     );
   }
-
 }
+
 class CurveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     final path = Path();
     path.lineTo(0, size.height - 40);
-    path.quadraticBezierTo(
-        size.width / 2, size.height, size.width, size.height - 40);
+    path.quadraticBezierTo(size.width / 2, size.height, size.width, size.height - 40);
     path.lineTo(size.width, 0);
     path.close();
     return path;

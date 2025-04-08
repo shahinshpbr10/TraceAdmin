@@ -33,14 +33,20 @@ class _BusDetailsPageState extends State<BusDetailsPage> {
     try {
       final ListResult result = await storageRef.listAll();
       final List<Map<String, String>> images = [];
+      final DateTime now = DateTime.now();
 
       for (var ref in result.items) {
-        final url = await ref.getDownloadURL();
         final metadata = await ref.getMetadata();
-        final uploaded = metadata.timeCreated != null
-            ? DateFormat('dd-MM-yyyy hh:mm a').format(metadata.timeCreated!.toLocal())
-            : "Unknown";
-        images.add({'url': url, 'uploadedAt': uploaded});
+        final DateTime? timeCreated = metadata.timeCreated?.toLocal();
+
+        if (timeCreated != null &&
+            timeCreated.year == now.year &&
+            timeCreated.month == now.month &&
+            timeCreated.day == now.day) {
+          final url = await ref.getDownloadURL();
+          final uploaded = DateFormat('dd-MM-yyyy hh:mm a').format(timeCreated);
+          images.add({'url': url, 'uploadedAt': uploaded});
+        }
       }
 
       setState(() {
